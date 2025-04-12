@@ -1,0 +1,171 @@
+{
+  "name": "sync-calendars",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "db487910-3561-42ac-8651-c697af8b69df",
+      "name": "When clicking ‘Test workflow’"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://youthful_germain:3001/scrape-oponeo",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "XXX@XXX.com.pl"
+            },
+            {
+              "name": "password",
+              "value": "XXX"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "id": "a024d7fb-9d74-4944-9ed4-9ed87b920df5",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "function get_formatted_date(local_date) {\n\tconst warsaw_formatter = new Intl.DateTimeFormat('en-US', {\n\t\ttimeZone: 'Europe/Warsaw',\n\t\tyear: 'numeric',\n\t\tmonth: '2-digit',\n\t\tday: '2-digit',\n\t\thour: '2-digit',\n\t\tminute: '2-digit',\n\t\tsecond: '2-digit',\n\t\thour12: false\n\t});\n\n\tconst [\n\t\t{ value: month },,\n\t\t{ value: day },,\n\t\t{ value: year },,\n\t\t{ value: hour },,\n\t\t{ value: minute },,\n\t\t{ value: second }\n\t] = warsaw_formatter.formatToParts(local_date);\n\n\treturn new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}.000Z`);\n}\n// Sample transform function — you can customize this\nfunction transform_to_wo_format(reservation) {\n  const reservation_details = reservation.data[0].details\n\tconst [start, end] = reservation_details.time.split(' - ');\n\n\t// parse date components from DD-MM-YYYY format\n\tconst [day, month, year] = reservation_details.date.split('-').map(Number);\n\tconst [startHour, startMinute] = start.split(':').map(Number);\n\tconst [endHour, endMinute] = end.split(':').map(Number);\n\n\t// create dates using explicit parameter, month is 0-indexed, (January = 0, December = 11)\n\tconst local_start_date = new Date(year, month - 1, day, startHour, startMinute);\n\tconst local_end_date = new Date(year, month - 1, day, endHour, endMinute);\n\n\tconst start_date_time = get_formatted_date(local_start_date);\n\tconst end_date_time = get_formatted_date(local_end_date);\n\n\treturn {\n\t\tid: parseInt(reservation_details.reservation_number.replace(/\\D/g, '')),\n\t\tdescription: reservation_details.description || '',\n\t\tcustomerName: reservation_details.client_name || ' ',\n\t\tstartDate: start_date_time.toISOString(),\n\t\tendDate: end_date_time.toISOString(),\n\t\tdate: reservation_details.date,\n\t\tworkspace: {\n\t\t\tid: 13096,\n\t\t\tname: 'Opony',\n\t\t},\n\t\tlicencePlate: reservation_details.registration_number || '',\n\t\tprefix: '+48',\n\t\tphoneNumber: reservation_details.phone.replace(/\\D/g, '') || '',\n\t\temail: reservation_details.email || '',\n\t\turl: reservation.reservation_url || '',\n\t};\n}\n\n// Fetch all input items\nconst inputData = $input.all().map(i => i.json);\nconst transformed_data = [];\n\nfor (const reservation of inputData) {\n  transformed_data.push(transform_to_wo_format(reservation));\n}\n\n// Optionally, you can return it too\nreturn [\n  {\n    json: {\n      transformed_data\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "0267af75-09e5-4698-bef3-4925182a580b",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        180
+      ],
+      "id": "215a99c0-b19a-4ca5-90f4-1831cf2083f9",
+      "name": "When chat message received",
+      "webhookId": "fb165988-d932-4558-9cae-92c2d481d983"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.6,
+      "position": [
+        880,
+        0
+      ],
+      "id": "ea615a36-ec8b-481a-8c8a-4a81825ed780",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        0
+      ],
+      "id": "ae3d8bf9-f878-4318-af86-202d399c6722",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "4QIvZfqQu4gNonn9",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2afe136d-eeb9-498d-b82e-ec8678590f1b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "73852480635bcb3e9a485176e7ea69c67411e49076576c158c09d4bc808141c8"
+  },
+  "id": "VzUekfT87UNtmuJk",
+  "tags": []
+}
