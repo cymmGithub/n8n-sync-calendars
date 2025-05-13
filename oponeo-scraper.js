@@ -314,8 +314,8 @@ async function save_results_to_json(data) {
 const get_reservations_from_now_url = () => {
 	const reservations_base_url = process.env.OPONEO_RESERVATIONS_LIST_URL
 	const js_now = new Date();
-	// const week_ago= new Date(js_now.getTime() - 40 * 24 * 60 * 60 * 1000);
-	const dot_net_now = js_now.getTime() * TICKS_PER_MILLISECOND + EPOCH_TICKS_AT_UNIX_EPOCH;
+	const week_ago= new Date(js_now.getTime() - 40 * 24 * 60 * 60 * 1000);
+	const dot_net_now = week_ago.getTime() * TICKS_PER_MILLISECOND + EPOCH_TICKS_AT_UNIX_EPOCH;
 
 	return `${reservations_base_url}?data-od=${dot_net_now}`;
 

@@ -1,0 +1,38 @@
+services:
+  n8n:
+    image: n8nio/n8n:1.90.0
+    ports:
+      - '127.0.0.1:5678:5678'
+    environment:
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: ${N8N_BLOCK_ENV_ACCESS_IN_NODE}
+      N8N_HOST: ${SUBDOMAIN}.${DOMAIN_NAME}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: https
+      NODE_ENV: production
+      WEBHOOK_URL: https://${SUBDOMAIN}.${DOMAIN_NAME}/
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./local-files:/files
+  oponeo-scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oponeo-scraper
+    restart: unless-stopped
+    environment:
+      OPONEO_LOGIN_URL: ${OPONEO_LOGIN_URL}
+      OPONEO_RESERVATIONS_LIST_URL: ${OPONEO_RESERVATIONS_LIST_URL}
+      OPONEO_BASE_URL: ${OPONEO_BASE_URL}
+      PORT: ${PORT}
+    volumes:
+      - ./:/app/
+    networks:
+      - n8n-network
+
+volumes:
+  n8n_data:
+
+networks:
+  n8n-network:
+    driver: bridge
