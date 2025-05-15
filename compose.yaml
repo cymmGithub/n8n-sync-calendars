@@ -2,7 +2,7 @@ services:
   n8n:
     image: n8nio/n8n:1.90.0
     ports:
-      - '127.0.0.1:5678:5678'
+      - 5678:5678
     environment:
       N8N_BLOCK_ENV_ACCESS_IN_NODE: ${N8N_BLOCK_ENV_ACCESS_IN_NODE}
       N8N_HOST: ${SUBDOMAIN}.${DOMAIN_NAME}
