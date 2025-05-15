@@ -27,12 +27,5 @@ services:
       PORT: ${PORT}
     volumes:
       - ./:/app/
-    networks:
-      - n8n-network
-
 volumes:
   n8n_data:
-
-networks:
-  n8n-network:
-    driver: bridge
