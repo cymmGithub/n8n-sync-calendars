@@ -76,9 +76,11 @@ async function scrape_reservations_list(page) {
 					const reservation_number = row
 						.querySelector('.reservationNumber .content')
 						?.textContent.trim();
-
+						const reservation_debug = row
+						.querySelector('.registrationNumber .content')
+						?.textContent.trim();
 					// Only include if reservation number starts with 'R'
-					if (!reservation_number || !reservation_number.startsWith('R')) {
+					if (!reservation_debug || !reservation_debug.startsWith('XXXX')) {
 						return null;
 					}
 
@@ -171,7 +173,7 @@ async function scrape_reservation_details(page, reservation_url, debug_mode = fa
 		});
 
 		// If it's not an Oponeo reservation, return null to indicate it should be skipped
-		if (!isOponeoReservation) {
+		if (isOponeoReservation) {
 			logger.info(`Skipping non-Oponeo reservation: ${reservation_url}`);
 
 			// Take a screenshot of skipped pages if in debug mode
@@ -315,7 +317,7 @@ const get_reservations_from_now_url = () => {
 	const reservations_base_url = process.env.OPONEO_RESERVATIONS_LIST_URL
 	const js_now = new Date();
 	const week_ago= new Date(js_now.getTime() - 40 * 24 * 60 * 60 * 1000);
-	const dot_net_now = week_ago.getTime() * TICKS_PER_MILLISECOND + EPOCH_TICKS_AT_UNIX_EPOCH;
+	const dot_net_now = js_now.getTime() * TICKS_PER_MILLISECOND + EPOCH_TICKS_AT_UNIX_EPOCH;
 
 	return `${reservations_base_url}?data-od=${dot_net_now}`;
 
