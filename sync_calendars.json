@@ -6,8 +6,8 @@
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        -220,
-        100
+        -260,
+        -380
       ],
       "id": "909cded6-be69-4a36-a243-76d2f64e5edc",
       "name": "Manual Trigger"
@@ -35,23 +35,23 @@
       "typeVersion": 4.2,
       "position": [
         0,
-        0
+        -500
       ],
-      "id": "6c33bf04-6367-40d5-9c2d-2b43d7322a18",
-      "name": "Scrape Oponeo"
+      "id": "4516b9d9-6380-4f97-a796-5dd6cf7152e8",
+      "name": "Scrape Oponeo1"
     },
     {
       "parameters": {
-        "jsCode": "function get_formatted_date(local_date) {\n\tconst warsaw_formatter = new Intl.DateTimeFormat('en-US', {\n\t\ttimeZone: 'Europe/Warsaw',\n\t\tyear: 'numeric',\n\t\tmonth: '2-digit',\n\t\tday: '2-digit',\n\t\thour: '2-digit',\n\t\tminute: '2-digit',\n\t\tsecond: '2-digit',\n\t\thour12: false\n\t});\n\n\tconst [\n\t\t{ value: month },,\n\t\t{ value: day },,\n\t\t{ value: year },,\n\t\t{ value: hour },,\n\t\t{ value: minute },,\n\t\t{ value: second }\n\t] = warsaw_formatter.formatToParts(local_date);\n\n\treturn new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}.000Z`);\n}\nfunction transform_to_wo_format(reservation) {\n    const reservation_details = reservation.details\n\tconst [start, end] = reservation_details.time.split(' - ');\n\n\tconst [day, month, year] = reservation_details.date.split('-').map(Number);\n\tconst [startHour, startMinute] = start.split(':').map(Number);\n\tconst [endHour, endMinute] = end.split(':').map(Number);\n\n\tconst local_start_date = new Date(year, month - 1, day, startHour, startMinute);\n\tconst local_end_date = new Date(year, month - 1, day, endHour, endMinute);\n\n\tconst start_date_time = get_formatted_date(local_start_date);\n\tconst end_date_time = get_formatted_date(local_end_date);\n\n\treturn {\n\t\t// id: parseInt(reservation_details.reservation_number.replace(/\\D/g, '')),\n        type: '1',\n\t\tworkspace: 13096,\n        time: 30,\n\t\tlicencePlate: reservation_details.registration_number || '',\n\t\tfirstname: reservation_details.client_name.split(\" \")[0] || ' ',\n\t\tlastname: reservation_details.client_name.split(\" \")[1] || ' ',\n\t\tphone: reservation_details.phone.replace(/\\D/g, '') || '',\n\t\temail: reservation_details.email || '',\n        category: 1,\n\t\tnotes: reservation_details.description || '',\n\t\tfromDate: start_date_time.toISOString(),\n\t\ttoDate: end_date_time.toISOString(),\n        reservationType: \"1\",\n\t};\n}\nconst inputData = $input.all().map(i => i.json);\n\nif(inputData[0].data.length === 0){\n  return [];\n}\n\nconst transformed_data = [];\n\nfor (const reservation of inputData[0].data) {\n  transformed_data.push(transform_to_wo_format(reservation));\n}\n\nreturn transformed_data.map(item => ({ json: item }));\n"
+        "jsCode": "function get_formatted_date(local_date) {\n\tconst warsaw_formatter = new Intl.DateTimeFormat('en-US', {\n\t\ttimeZone: 'Europe/Warsaw',\n\t\tyear: 'numeric',\n\t\tmonth: '2-digit',\n\t\tday: '2-digit',\n\t\thour: '2-digit',\n\t\tminute: '2-digit',\n\t\tsecond: '2-digit',\n\t\thour12: false\n\t});\n\n\tconst [\n\t\t{ value: month },,\n\t\t{ value: day },,\n\t\t{ value: year },,\n\t\t{ value: hour },,\n\t\t{ value: minute },,\n\t\t{ value: second }\n\t] = warsaw_formatter.formatToParts(local_date);\n\n\treturn new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}.000Z`);\n}\nfunction transform_to_wo_format(reservation) {\n    const reservation_details = reservation.details\n\tconst [start, end] = reservation_details.time.split(' - ');\n\n\tconst [day, month, year] = reservation_details.date.split('-').map(Number);\n\tconst [startHour, startMinute] = start.split(':').map(Number);\n\tconst [endHour, endMinute] = end.split(':').map(Number);\n\n\tconst local_start_date = new Date(year, month - 1, day, startHour, startMinute);\n\tconst local_end_date = new Date(year, month - 1, day, endHour, endMinute);\n\n\tconst start_date_time = get_formatted_date(local_start_date);\n\tconst end_date_time = get_formatted_date(local_end_date);\n\n\treturn {\n\t\t// id: parseInt(reservation_details.reservation_number.replace(/\\D/g, '')),\n        type: '1',\n\t\tworkspace: 13096,\n        time: 30,\n\t\tlicencePlate: reservation_details.registration_number || '',\n\t\tfirstname: reservation_details.client_name.split(\" \")[0] || ' ',\n\t\tlastname: reservation_details.client_name.split(\" \")[1] || ' ',\n\t\tphone: reservation_details.phone.replace(/\\D/g, '') || '',\n\t\temail: reservation_details.email || '',\n        category: 1,\n\t\tnotes: reservation.reservation_url || '',\n\t\tfromDate: start_date_time.toISOString(),\n\t\ttoDate: end_date_time.toISOString(),\n        reservationType: \"1\",\n\t};\n}\nconst inputData = $input.all().map(i => i.json);\n\nif(inputData[0].data.length === 0){\n  return [];\n}\n\nconst transformed_data = [];\n\nfor (const reservation of inputData[0].data) {\n  transformed_data.push(transform_to_wo_format(reservation));\n}\n\nreturn transformed_data.map(item => ({ json: item }));\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         180,
-        0
+        -500
       ],
-      "id": "76af55c3-7a33-42d2-b8e7-182c23e44cdf",
-      "name": "transform to WO format"
+      "id": "571e6783-f12c-47be-b81d-8e3260b4d944",
+      "name": "transform to WO format1"
     },
     {
       "parameters": {
@@ -74,24 +74,55 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        380,
-        0
+        460,
+        -360
       ],
-      "id": "a01d51dd-0b92-454b-86c2-45231662b1db",
-      "name": "HTTP Request"
+      "id": "ae88fece-cecf-4125-b415-8bac8bab4336",
+      "name": "HTTP Request1",
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "authentication": "oAuth2",
         "select": "channel",
         "channelId": {
           "__rl": true,
           "value": "C08GS5XHR42",
-          "mode": "list",
-          "cachedResultName": "all-opony-samochodowe"
+          "mode": "id"
         },
         "messageType": "block",
-        "blocksUi": "={\n  \"blocks\": [\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*<https://serwis.wymianaopon.pl/zaplanowane|Nowa rezerwacja>*\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Klient:*\\n{{ $json.event.extendedProps.firstname }} {{ $json.event.extendedProps.lastname }}\\nprzemek@example.com\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Termin:*\\n Od: {{ $json.event.start }}\\nDo: {{ $json.event.end }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Nr rejestracyjny:*\\n{{ $json.event.extendedProps.licencePlate }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Nr telefonu:*\\n{{ $json.event.extendedProps.phone }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Notatki:*\\nCheetah Pro 15 - Fast, really fast\"\n        }\n      ]\n    }\n  ]\n}\n",
+        "blocksUi": "={\n  \"blocks\": [\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*⚠️ Konflikt rezerwacji na Oponeo!*\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*👤 Klient:*\\n{{ $json.firstname }} {{ $json.lastname }}\\n{{ $json.email }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*📅 Termin:*\\n• Od: {{ DateTime.fromISO($json.fromDate).setLocale('pl').toFormat('d LLLL yyyy, HH:mm') }}\\n• Do: {{ DateTime.fromISO($json.toDate).setLocale('pl').toFormat('d LLLL yyyy, HH:mm') }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*🚗 Nr rejestracyjny:*\\n{{ $json.licencePlate }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*📞 Nr telefonu:*\\n{{ $json.phone }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*🔗 Oponeo link:*\\n<{{ $json.notes }}|Kliknij tutaj>\"\n        }\n      ]\n    },\n    {\n      \"type\": \"divider\"\n    }\n  ]\n}\n",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "link_names": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1220,
+        -660
+      ],
+      "id": "37791939-cab6-4c8d-94dc-000c8d709d83",
+      "name": "Slack1",
+      "webhookId": "ef236322-8cac-4f69-b863-e93223accb51",
+      "credentials": {
+        "slackApi": {
+          "id": "EMlcObsDVRuROwOa",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "user",
+        "user": {
+          "__rl": true,
+          "value": "U08GS5XBHPU",
+          "mode": "list",
+          "cachedResultName": "przemswiercz"
+        },
+        "text": "KONFLIKT",
         "otherOptions": {
           "includeLinkToWorkflow": false,
           "mrkdwn": false
@@ -100,64 +131,168 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
       "position": [
-        600,
-        0
+        960,
+        -760
       ],
-      "id": "9b8b8e6f-d947-4fb6-a214-70b64c1386ab",
-      "name": "Slack",
+      "id": "4edd8c80-a076-43cf-aac7-f852cfba4269",
+      "name": "Slack3",
       "webhookId": "ef236322-8cac-4f69-b863-e93223accb51",
       "credentials": {
         "slackOAuth2Api": {
-          "id": "ifMxBMLd48bnaOpl",
+          "id": "I3CYohQnEzGmXoJk",
           "name": "Slack account"
         }
       }
+    },
+    {
+      "parameters": {
+        "mode": "mergeByIndex"
+      },
+      "name": "Merge1",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        720,
+        -480
+      ],
+      "id": "b0e15248-ae40-44f1-bbda-07cf7679db23"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.error }}",
+                    "rightValue": "=",
+                    "operator": {
+                      "type": "object",
+                      "operation": "exists",
+                      "singleValue": true
+                    },
+                    "id": "4d68a53e-03af-46b3-8f4d-3ccc88a618ea"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "a853aa50-8c39-49e7-a2ee-ffd66fc943ac",
+                    "leftValue": "={{ $json.error }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "object",
+                      "operation": "notExists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        960,
+        -480
+      ],
+      "id": "e522e04f-041a-46d1-89f5-59414fdac656",
+      "name": "Switch"
     }
   ],
   "pinData": {},
   "connections": {
-    "Scrape Oponeo": {
-      "main": [
-        [
-          {
-            "node": "transform to WO format",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Manual Trigger": {
       "main": [
         [
           {
-            "node": "Scrape Oponeo",
+            "node": "Scrape Oponeo1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "transform to WO format": {
+    "Scrape Oponeo1": {
       "main": [
         [
           {
-            "node": "HTTP Request",
+            "node": "transform to WO format1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "HTTP Request": {
+    "transform to WO format1": {
       "main": [
         [
           {
-            "node": "Slack",
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge1",
             "type": "main",
             "index": 0
           }
         ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Slack1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     }
   },
@@ -165,7 +300,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "4de11e5d-a857-401f-9717-1a278d8ae16e",
+  "versionId": "45d55b86-26f2-4373-8ed2-ddb871b7273e",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "08c4153b45f22779282b523b971a718ee9621fdc1eefc239e2375b2f35f040cd"
