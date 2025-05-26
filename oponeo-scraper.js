@@ -80,7 +80,7 @@ async function scrape_reservations_list(page) {
 						.querySelector('.registrationNumber .content')
 						?.textContent.trim();
 					// Only include if reservation number starts with 'R'
-					if (!reservation_debug || !reservation_debug.startsWith('XXXX')) {
+					if (!reservation_debug || !reservation_debug.startsWith('KAKTUSXXX') || !reservation_debug.startsWith('R') ) {
 						return null;
 					}
 
@@ -316,7 +316,8 @@ async function save_results_to_json(data) {
 const get_reservations_from_now_url = () => {
 	const reservations_base_url = process.env.OPONEO_RESERVATIONS_LIST_URL
 	const js_now = new Date();
-	const week_ago= new Date(js_now.getTime() - 40 * 24 * 60 * 60 * 1000);
+	// for debugging
+	// const some_time_ago= new Date(js_now.getTime() - 40 * 24 * 60 * 60 * 1000);
 	const dot_net_now = js_now.getTime() * TICKS_PER_MILLISECOND + EPOCH_TICKS_AT_UNIX_EPOCH;
 
 	return `${reservations_base_url}?data-od=${dot_net_now}`;
@@ -404,8 +405,6 @@ app.post('/scrape-oponeo', async (req, res) => {
 			);
 		}
 
-		const json_file_path = await save_results_to_json(detailed_reservations);
-
 		await browser.close();
 
 		const final_stats = {
@@ -421,7 +420,6 @@ app.post('/scrape-oponeo', async (req, res) => {
 			url: url || 'https://autoserwis.oponeo.pl/',
 			data_keys: Object.keys(detailed_reservations),
 			screenshot_path,
-			json_file_path,
 			stats: final_stats
 		});
 
@@ -429,7 +427,6 @@ app.post('/scrape-oponeo', async (req, res) => {
 			success: true,
 			data: detailed_reservations,
 			screenshot_path,
-			json_file_path,
 			stats: final_stats
 		});
 	} catch (error) {
