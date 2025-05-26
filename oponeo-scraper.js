@@ -80,7 +80,7 @@ async function scrape_reservations_list(page) {
 						.querySelector('.registrationNumber .content')
 						?.textContent.trim();
 					// Only include if reservation number starts with 'R'
-					if (!reservation_debug || !reservation_debug.startsWith('KAKTUSXXX') || !reservation_debug.startsWith('R') ) {
+					if (!reservation_debug || !reservation_debug.startsWith('KAKTUSXXX')) {
 						return null;
 					}
 
