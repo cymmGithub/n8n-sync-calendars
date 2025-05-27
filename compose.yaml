@@ -21,7 +21,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: oponeo-scraper
     restart: unless-stopped
     environment:
       OPONEO_LOGIN_URL: ${OPONEO_LOGIN_URL}
@@ -30,5 +29,14 @@ services:
       PORT: ${PORT}
     volumes:
       - ./:/app/
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
 volumes:
   n8n_data:
+  redis_data:
