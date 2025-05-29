@@ -51,20 +51,6 @@ async function authenticate_oponeo(page, email, password) {
 	}
 }
 
-async function save_screenshot(screenshot_data, prefix = '') {
-	if (!screenshot_data) return null;
-
-	const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-	const file_name = `${prefix}screenshot-${timestamp}.png`;
-	const file_path = path.join(__dirname, file_name);
-
-	const base64_data = screenshot_data.replace(/^data:image\/png;base64,/, '');
-	fs.writeFileSync(file_path, base64_data, 'base64');
-
-	logger.info(`Screenshot saved to: ${file_path}`);
-	return file_path;
-}
-
 async function scrape_reservations_list(page) {
 	try {
 		// Extract all reservations from the current page and filter
@@ -76,11 +62,11 @@ async function scrape_reservations_list(page) {
 					const reservation_number = row
 						.querySelector('.reservationNumber .content')
 						?.textContent.trim();
-						const reservation_debug = row
+						const licence_plate = row
 						.querySelector('.registrationNumber .content')
 						?.textContent.trim();
-					// Only include if reservation number starts with 'R' or 'KAKTUSXXX' for debugging purposes
-					if (!reservation_debug || (!reservation_debug.startsWith('KAKTUSXXX') && !reservation_debug.startsWith('R'))) {
+					// Only include if reservation number starts with 'R' or licence plate = 'KAKTUSXXX' for debugging purposes
+					if ((!licence_plate.startsWith('KAKTUSXXX') && !reservation_number.startsWith('R'))) {
 						return null;
 					}
 
@@ -175,17 +161,6 @@ async function scrape_reservation_details(page, reservation_url, debug_mode = fa
 		// If it's not an Oponeo reservation, return null to indicate it should be skipped
 		if (isOponeoReservation) {
 			logger.info(`Skipping non-Oponeo reservation: ${reservation_url}`);
-
-			// Take a screenshot of skipped pages if in debug mode
-			if (debug_mode) {
-				const screenshot_data = await page.screenshot({ fullPage: true });
-				const screenshot_path = await save_screenshot(
-					`data:image/png;base64,${screenshot_data.toString('base64')}`,
-					'skipped-'
-				);
-				logger.info(`Screenshot of skipped reservation saved to: ${screenshot_path}`);
-			}
-
 			return null;
 		}
 
@@ -325,9 +300,8 @@ const get_reservations_from_now_url = () => {
 }
 
 app.post('/scrape-oponeo', async (req, res) => {
+	const url = process.env.OPONEO_BASE_URL;
 	const {
-		url = process.env.OPONEO_BASE_URL,
-		screenshot,
 		email,
 		password,
 		debug_mode = true,
@@ -396,15 +370,6 @@ app.post('/scrape-oponeo', async (req, res) => {
 
 		logger.info(`Reservation processing complete: Total processed: ${processed}, Included: ${detailed_reservations.length}, Skipped: ${skipped}`);
 
-		let screenshot_path = null;
-		if (screenshot) {
-			const screenshot_data = await page.screenshot({ fullPage: true });
-			screenshot_path = await save_screenshot(
-				`data:image/png;base64,${screenshot_data.toString('base64')}`,
-				'scrape-'
-			);
-		}
-
 		await browser.close();
 
 		const final_stats = {
@@ -419,14 +384,12 @@ app.post('/scrape-oponeo', async (req, res) => {
 		logger.info('Successfully scraped data after authentication', {
 			url: url || 'https://autoserwis.oponeo.pl/',
 			data_keys: Object.keys(detailed_reservations),
-			screenshot_path,
 			stats: final_stats
 		});
 
 		res.json({
 			success: true,
 			data: detailed_reservations,
-			screenshot_path,
 			stats: final_stats
 		});
 	} catch (error) {
