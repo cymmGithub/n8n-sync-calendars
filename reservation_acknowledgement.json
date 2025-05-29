@@ -1,0 +1,212 @@
+{
+  "name": "reservation acknowledgement",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const payloadStr = $input.first().json.body.payload;\n\n// Parse it into a proper object\nconst payload = JSON.parse(payloadStr);\nconsole.log(payload.response_url)\nconst reservationId = payload.actions[0].value;\nreturn [\n  {\n    json: {\n      reservationId,\n      slack_response_url: payload.response_url\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        -225
+      ],
+      "id": "1e8bdb9c-de93-4073-b38c-064dae7295ae",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "=reservation",
+        "key": "={{ $json.reservationId }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        160,
+        -380
+      ],
+      "id": "84d38bf0-253e-46f3-a04e-f078fc21590a",
+      "name": "Redis",
+      "credentials": {
+        "redis": {
+          "id": "cNNgFFW5q5OqE5Wt",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = JSON.parse($input.first().json.reservation); // Redis returns stringified JSONconsol\ndata.notification_status = \"resolved\"; // Update the field\nconst reservationId = data.notes.split('/').pop();\n\nreturn [\n  {\n    json: {\n      reservationId,\n      updatedValue: JSON.stringify(data) // prepare to store back in Redis\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        380,
+        -380
+      ],
+      "id": "b4292b77-0aaa-4830-97b2-9fbd529d8ee1",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "36a20985-719e-4cd1-ae46-69a050f044ea",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -300,
+        -225
+      ],
+      "id": "7cf71a4e-819f-459b-a9af-9216d95861bc",
+      "name": "Webhook1",
+      "webhookId": "36a20985-719e-4cd1-ae46-69a050f044ea"
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $json.reservationId }}",
+        "value": "={{ $json.updatedValue }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        600,
+        -380
+      ],
+      "id": "a619eabe-4551-4c2c-868f-4c3627e95dbc",
+      "name": "Redis3",
+      "credentials": {
+        "redis": {
+          "id": "cNNgFFW5q5OqE5Wt",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.slack_response_url }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"replace_original\": true,\n  \"blocks\": [\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \":white_check_mark: Odhaczona!\"\n      }\n    }\n  ]\n}",
+        "options": {
+          "response": {
+            "response": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1020,
+        -225
+      ],
+      "id": "264739f5-5d25-4f86-b2ae-07e2329e1865",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "mode": "mergeByIndex"
+      },
+      "name": "Merge results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        800,
+        -225
+      ],
+      "id": "d9f1e88b-ebba-495e-ac62-6c88ec335b79"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Redis",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Redis": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Redis3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis3": {
+      "main": [
+        [
+          {
+            "node": "Merge results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge results": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "eb952b64-6ece-4a67-aeff-790c88f281b0",
+  "meta": {
+    "instanceId": "08c4153b45f22779282b523b971a718ee9621fdc1eefc239e2375b2f35f040cd"
+  },
+  "id": "M2NqcZj6M1QT2KMt",
+  "tags": []
+}
