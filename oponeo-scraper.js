@@ -66,7 +66,7 @@ async function scrape_reservations_list(page) {
 						.querySelector('.registrationNumber .content')
 						?.textContent.trim();
 					// Only include if reservation number starts with 'R' or licence plate = 'KAKTUSXXX' for debugging purposes
-					if ((!licence_plate.startsWith('KAKTUSXXX') && !reservation_number.startsWith('R'))) {
+					if ((!licence_plate.startsWith('KAKTUSXXX') && !reservation_number.startsWith('Z'))) {
 						return null;
 					}
 
