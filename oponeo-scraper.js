@@ -2,8 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const { chromium } = require('playwright');
 const winston = require('winston');
-const fs = require('fs');
-const path = require('path');
 
 const TICKS_PER_MILLISECOND = 10_000;
 const EPOCH_TICKS_AT_UNIX_EPOCH = 621_355_968_000_000_000;
@@ -66,7 +64,7 @@ async function scrape_reservations_list(page) {
 						.querySelector('.registrationNumber .content')
 						?.textContent.trim();
 					// Only include if reservation number starts with 'R' or licence plate = 'KAKTUSXXX' for debugging purposes
-					if ((!licence_plate.startsWith('KAKTUSXXX') && !reservation_number.startsWith('Z'))) {
+					if ((!licence_plate.startsWith('KAKTUSXXX') && !reservation_number.startsWith('R'))) {
 						return null;
 					}
 
@@ -197,64 +195,6 @@ async function scrape_reservation_details(page, reservation_url, debug_mode = fa
 	}
 }
 
-function get_formatted_date(local_date) {
-	const warsaw_formatter = new Intl.DateTimeFormat('en-US', {
-		timeZone: 'Europe/Warsaw',
-		year: 'numeric',
-		month: '2-digit',
-		day: '2-digit',
-		hour: '2-digit',
-		minute: '2-digit',
-		second: '2-digit',
-		hour12: false
-	});
-
-	const [
-		{ value: month },,
-		{ value: day },,
-		{ value: year },,
-		{ value: hour },,
-		{ value: minute },,
-		{ value: second }
-	] = warsaw_formatter.formatToParts(local_date);
-
-	return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}.000Z`);
-}
-
-function transform_to_wo_format(reservation) {
-	const [start, end] = reservation.details.time.split(' - ');
-
-	// parse date components from DD-MM-YYYY format
-	const [day, month, year] = reservation.details.date.split('-').map(Number);
-	const [startHour, startMinute] = start.split(':').map(Number);
-	const [endHour, endMinute] = end.split(':').map(Number);
-
-	// create dates using explicit parameter, month is 0-indexed, (January = 0, December = 11)
-	const local_start_date = new Date(year, month - 1, day, startHour, startMinute);
-	const local_end_date = new Date(year, month - 1, day, endHour, endMinute);
-
-	const start_date_time = get_formatted_date(local_start_date);
-	const end_date_time = get_formatted_date(local_end_date);
-
-	return {
-		id: parseInt(reservation.details.reservation_number.replace(/\D/g, '')),
-		description: reservation.details.description || '',
-		customerName: reservation.details.client_name || ' ',
-		startDate: start_date_time.toISOString(),
-		endDate: end_date_time.toISOString(),
-		date: reservation.details.date,
-		workspace: {
-			id: 13096,
-			name: 'Opony',
-		},
-		licencePlate: reservation.details.registration_number || '',
-		prefix: '+48',
-		phoneNumber: reservation.details.phone.replace(/\D/g, '') || '',
-		email: reservation.details.email || '',
-		url: reservation.reservation_url || '',
-	};
-}
-
 const get_reservations_from_now_url = () => {
 	const reservations_base_url = process.env.OPONEO_RESERVATIONS_LIST_URL
 	const js_now = new Date();
@@ -303,7 +243,6 @@ app.post('/scrape-oponeo', async (req, res) => {
 		logger.info(`Accessing reservations with URL: ${reservations_from_now_url}`);
 		await page.goto(reservations_from_now_url, { waitUntil: 'networkidle' });
 
-		// Use the new function to get reservations from all pages
 		const reservations_data = await get_all_pages_reservations(page);
 		logger.info(`Found ${reservations_data.reservations.length} reservations across all pages`);
 

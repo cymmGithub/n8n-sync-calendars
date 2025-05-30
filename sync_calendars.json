@@ -15,11 +15,11 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -300,
-        -560
+        0,
+        660
       ],
-      "id": "50b3938f-fb06-4bb4-96b4-e1e60f8f146d",
-      "name": "Schedule Trigger"
+      "id": "8254db67-5cdc-427a-a963-3dfe13bc36c9",
+      "name": "Schedule Trigger1"
     },
     {
       "parameters": {
@@ -43,11 +43,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -100,
-        -560
+        200,
+        660
       ],
-      "id": "4516b9d9-6380-4f97-a796-5dd6cf7152e8",
-      "name": "Scrape Oponeo",
+      "id": "1e3b448c-0c73-4ceb-8c9d-27f7d9b993e7",
+      "name": "Scrape Oponeo1",
       "retryOnFail": true
     },
     {
@@ -57,11 +57,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        160,
-        -560
+        460,
+        660
       ],
-      "id": "571e6783-f12c-47be-b81d-8e3260b4d944",
-      "name": "transform to WO format"
+      "id": "ea5376e3-5ab7-44bd-bcde-4b6364dcc0a9",
+      "name": "transform to WO format1"
     },
     {
       "parameters": {
@@ -84,11 +84,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        420,
-        -420
+        720,
+        800
       ],
-      "id": "ae88fece-cecf-4125-b415-8bac8bab4336",
-      "name": "POST to WO calendar",
+      "id": "e710dc8f-0bed-4475-884c-521e6d37c5a3",
+      "name": "POST to WO calendar1",
       "retryOnFail": true,
       "onError": "continueRegularOutput"
     },
@@ -96,14 +96,14 @@
       "parameters": {
         "mode": "mergeByIndex"
       },
-      "name": "Merge results",
+      "name": "Merge results1",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 1,
       "position": [
-        660,
-        -540
+        960,
+        680
       ],
-      "id": "b0e15248-ae40-44f1-bbda-07cf7679db23"
+      "id": "f3121ef5-c714-4827-9393-26800ec71846"
     },
     {
       "parameters": {
@@ -124,47 +124,15 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
       "position": [
-        1900,
-        -560
+        2540,
+        580
       ],
-      "id": "37791939-cab6-4c8d-94dc-000c8d709d83",
-      "name": "Conflict alert",
+      "id": "ba4c89c3-5f15-4e32-a66f-50d2963db78c",
+      "name": "Conflict alert1",
       "webhookId": "ef236322-8cac-4f69-b863-e93223accb51",
       "credentials": {
         "slackApi": {
           "id": "EMlcObsDVRuROwOa",
-          "name": "Slack account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "authentication": "oAuth2",
-        "select": "user",
-        "user": {
-          "__rl": true,
-          "value": "U08GS5XBHPU",
-          "mode": "list",
-          "cachedResultName": "przemswiercz"
-        },
-        "text": "KONFLIKT",
-        "otherOptions": {
-          "includeLinkToWorkflow": false,
-          "mrkdwn": false
-        }
-      },
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
-      "position": [
-        1240,
-        400
-      ],
-      "id": "4edd8c80-a076-43cf-aac7-f852cfba4269",
-      "name": "Success alert",
-      "webhookId": "ef236322-8cac-4f69-b863-e93223accb51",
-      "credentials": {
-        "slackOAuth2Api": {
-          "id": "I3CYohQnEzGmXoJk",
           "name": "Slack account"
         }
       }
@@ -178,11 +146,113 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -300,
-        -1220
+        0,
+        0
       ],
-      "id": "44066b72-e7e9-4322-b866-f147b552f903",
-      "name": "Sticky Note"
+      "id": "96ab2642-f9fb-4685-bb61-2ef43689ed66",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "fromEmail": "przemswiercz@gmail.com",
+        "toEmail": "hurt@digito.com.pl",
+        "subject": "Konflikt rezerwacji na Oponeo!",
+        "html": "={{(() => {\n  const data = $json;\n  const from = DateTime.fromISO(data.fromDate).setLocale('pl').toFormat('d LLLL yyyy, HH:mm');\n  const to = DateTime.fromISO(data.toDate).setLocale('pl').toFormat('d LLLL yyyy, HH:mm');\n  const reservationId = data.notes.split('/').pop();\n\n  return `\n    <div style=\"max-width:600px; margin:auto; font-family:Arial,sans-serif; background:#f9f9f9; border-radius:8px; padding:20px; border:1px solid #e0e0e0; color:#333;\">\n      <h2 style=\"color:#0d6efd;\">📝 Oponeo Nowa Rezerwacja</h2>\n      <table cellpadding=\"8\" cellspacing=\"0\" style=\"width:100%; font-size:15px;\">\n        <tr>\n          <td><strong>Imię:</strong></td>\n          <td>${data.firstname}</td>\n        </tr>\n        <tr>\n          <td><strong>Nazwisko:</strong></td>\n          <td>${data.lastname}</td>\n        </tr>\n        <tr>\n          <td><strong>Numer Rejestracyjny:</strong></td>\n          <td>${data.licencePlate}</td>\n        </tr>\n        <tr>\n          <td><strong>Telefon:</strong></td>\n          <td>${data.phone}</td>\n        </tr>\n        <tr>\n          <td><strong>Email:</strong></td>\n          <td>${data.email}</td>\n        </tr>\n        <tr>\n          <td><strong>Data:</strong></td>\n          <td>${from} – ${to}</td>\n        </tr>\n        <tr>\n          <td><strong>Notatki:</strong></td>\n          <td><a href=\"${data.notes}\" style=\"color:#0d6efd;\" target=\"_blank\">${data.notes}</a></td>\n        </tr>\n        <tr>\n          <td><strong>Status:</strong></td>\n          <td>Oczekująca</td>\n        </tr>\n      </table>\n\n      <div style=\"text-align:center; margin-top:30px;\">\n        <a href=\"https://own8n.bieda.it/webhook/74730634-b4fb-4598-ab88-7d37e98ab843?reservationId=${reservationId}\" target=\"_blank\" \n           style=\"background-color:#198754; color:white; padding:12px 24px; text-decoration:none; font-weight:bold; border-radius:6px; display:inline-block;\">\n          ✅ Odhacz\n        </a>\n      </div>\n    </div>\n  `;\n})()}}\n",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2960,
+        580
+      ],
+      "id": "2761d4b5-98d8-4a58-a9b6-e80ad89e64a5",
+      "name": "Send Email1",
+      "webhookId": "6104ee90-2ad8-49a4-979e-edf6b8e756f8",
+      "credentials": {
+        "smtp": {
+          "id": "2Ayq1mU4M5oTEJs0",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "mergeByIndex"
+      },
+      "name": "Merge results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        1640,
+        500
+      ],
+      "id": "ef032533-f15c-4428-b99f-2e8fe9b49f6e"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "=reservation",
+        "key": "={{ $json.reservationId }}",
+        "options": {
+          "dotNotation": true
+        }
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1420,
+        480
+      ],
+      "id": "787607c1-6806-4c12-8e6b-4c569e99a306",
+      "name": "Check if exists",
+      "credentials": {
+        "redis": {
+          "id": "cNNgFFW5q5OqE5Wt",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "mergeByKey",
+        "propertyName1": "reservationId",
+        "propertyName2": "reservationId"
+      },
+      "name": "Merge results2",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        660
+      ],
+      "id": "83c0eccd-e2da-4489-aa89-f29af49e4e2e"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cee47e86-9b51-40d4-bcd9-62d3f859df49",
+              "name": "reservationId",
+              "value": "={{ $json.notes.split('/').pop() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1280,
+        680
+      ],
+      "id": "48eb51fa-ddad-4971-ad19-028590cfd075",
+      "name": "Add reservation id"
     },
     {
       "parameters": {
@@ -193,10 +263,10 @@
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [
-        1620,
-        -560
+        2340,
+        660
       ],
-      "id": "a57b5f82-459b-45e1-930d-c389140ff7fc",
+      "id": "b6fb07cc-ad06-4ed4-93a6-04a5278706e0",
       "name": "Redis1",
       "credentials": {
         "redis": {
@@ -207,96 +277,15 @@
     },
     {
       "parameters": {
-        "content": "## If we need it, it's here",
-        "height": 240,
-        "width": 560
-      },
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        1160,
-        320
-      ],
-      "id": "d667c08a-cb1b-4c33-bbfb-6572c0aea979",
-      "name": "Sticky Note1"
-    },
-    {
-      "parameters": {
-        "select": "channel",
-        "channelId": {
-          "__rl": true,
-          "value": "C08GUQSK0TE",
-          "mode": "id"
-        },
-        "messageType": "block",
-        "blocksUi": "=🔴 *Unexpected WO error code:* {{ $json.error.code }}\n📍 *Message:* {{ $json.error.message }}\n",
-        "otherOptions": {
-          "includeLinkToWorkflow": false,
-          "link_names": false
-        }
-      },
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
-      "position": [
-        1500,
-        400
-      ],
-      "id": "c0f27675-f790-4de1-b163-ad18e8acb34a",
-      "name": "Unexpected WO error",
-      "webhookId": "ef236322-8cac-4f69-b863-e93223accb51",
-      "credentials": {
-        "slackApi": {
-          "id": "EMlcObsDVRuROwOa",
-          "name": "Slack account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "get",
-        "propertyName": "=reservation",
-        "key": "={{ $json.notes.split('/').pop() }}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.redis",
-      "typeVersion": 1,
-      "position": [
-        920,
-        -720
-      ],
-      "id": "3febe5bb-d59a-4660-81e3-8c22fcffc784",
-      "name": "Redis2",
-      "credentials": {
-        "redis": {
-          "id": "cNNgFFW5q5OqE5Wt",
-          "name": "Redis account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "mergeByIndex"
-      },
-      "name": "Merge results2",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 1,
-      "position": [
-        1360,
-        -560
-      ],
-      "id": "a222b9c3-9792-4657-a489-8d131dce807b"
-    },
-    {
-      "parameters": {
         "jsCode": "const reservation = JSON.parse($json.reservation);\n\n// Return the fields directly so they are available in the next node\nreturn [{ json: reservation }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1620,
-        -720
+        2340,
+        500
       ],
-      "id": "a82e0e83-b02f-42ed-8330-07006f4bc95f",
+      "id": "7b794581-50eb-4b47-adaf-1d2d02629ced",
       "name": "Code"
     },
     {
@@ -359,7 +348,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.reservation }}",
+                    "leftValue": "={{ undeinfed}}",
                     "rightValue": "",
                     "operator": {
                       "type": "boolean",
@@ -370,96 +359,84 @@
                   }
                 ],
                 "combinator": "and"
-              }
+              },
+              "renameOutput": "={{ false }}"
             }
           ]
         },
         "looseTypeValidation": true,
-        "options": {}
+        "options": {
+          "allMatchingOutputs": false
+        }
       },
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        1180,
-        -720
+        1820,
+        500
       ],
-      "id": "17bf3f2d-d22d-43af-b5e1-ccff68d89dc7",
+      "id": "d3edeb48-f78b-4ab7-a8de-46f383cd0145",
       "name": "Switch1"
-    },
-    {
-      "parameters": {
-        "fromEmail": "przemswiercz@gmail.com",
-        "toEmail": "hurt@digito.com.pl",
-        "subject": "Konflikt rezerwacji na Oponeo!",
-        "html": "={{(() => {\n  const data = $json;\n  const from = DateTime.fromISO(data.fromDate).setLocale('pl').toFormat('d LLLL yyyy, HH:mm');\n  const to = DateTime.fromISO(data.toDate).setLocale('pl').toFormat('d LLLL yyyy, HH:mm');\n  const reservationId = data.notes.split('/').pop();\n\n  return `\n    <div style=\"max-width:600px; margin:auto; font-family:Arial,sans-serif; background:#f9f9f9; border-radius:8px; padding:20px; border:1px solid #e0e0e0; color:#333;\">\n      <h2 style=\"color:#0d6efd;\">📝 Oponeo Nowa Rezerwacja</h2>\n      <table cellpadding=\"8\" cellspacing=\"0\" style=\"width:100%; font-size:15px;\">\n        <tr>\n          <td><strong>Imię:</strong></td>\n          <td>${data.firstname}</td>\n        </tr>\n        <tr>\n          <td><strong>Nazwisko:</strong></td>\n          <td>${data.lastname}</td>\n        </tr>\n        <tr>\n          <td><strong>Numer Rejestracyjny:</strong></td>\n          <td>${data.licencePlate}</td>\n        </tr>\n        <tr>\n          <td><strong>Telefon:</strong></td>\n          <td>${data.phone}</td>\n        </tr>\n        <tr>\n          <td><strong>Email:</strong></td>\n          <td>${data.email}</td>\n        </tr>\n        <tr>\n          <td><strong>Data:</strong></td>\n          <td>${from} – ${to}</td>\n        </tr>\n        <tr>\n          <td><strong>Notatki:</strong></td>\n          <td><a href=\"${data.notes}\" style=\"color:#0d6efd;\" target=\"_blank\">${data.notes}</a></td>\n        </tr>\n        <tr>\n          <td><strong>Status:</strong></td>\n          <td>Oczekująca</td>\n        </tr>\n      </table>\n\n      <div style=\"text-align:center; margin-top:30px;\">\n        <a href=\"https://own8n.bieda.it/webhook/74730634-b4fb-4598-ab88-7d37e98ab843?reservationId=${reservationId}\" target=\"_blank\" \n           style=\"background-color:#198754; color:white; padding:12px 24px; text-decoration:none; font-weight:bold; border-radius:6px; display:inline-block;\">\n          ✅ Odhacz\n        </a>\n      </div>\n    </div>\n  `;\n})()}}\n",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
-      "position": [
-        1900,
-        -800
-      ],
-      "id": "0dff1a4a-5077-4297-ad61-1faaf901e09b",
-      "name": "Send Email",
-      "webhookId": "6104ee90-2ad8-49a4-979e-edf6b8e756f8",
-      "credentials": {
-        "smtp": {
-          "id": "2Ayq1mU4M5oTEJs0",
-          "name": "SMTP account"
-        }
-      }
     }
   ],
   "pinData": {},
   "connections": {
-    "Schedule Trigger": {
+    "Schedule Trigger1": {
       "main": [
         [
           {
-            "node": "Scrape Oponeo",
+            "node": "Scrape Oponeo1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Scrape Oponeo": {
+    "Scrape Oponeo1": {
       "main": [
         [
           {
-            "node": "transform to WO format",
+            "node": "transform to WO format1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "transform to WO format": {
+    "transform to WO format1": {
       "main": [
         [
           {
-            "node": "POST to WO calendar",
+            "node": "POST to WO calendar1",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Merge results",
+            "node": "Merge results1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "POST to WO calendar": {
+    "POST to WO calendar1": {
       "main": [
         [
           {
-            "node": "Merge results",
+            "node": "Merge results1",
             "type": "main",
             "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge results1": {
+      "main": [
+        [
+          {
+            "node": "Add reservation id",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -468,33 +445,18 @@
       "main": [
         [
           {
-            "node": "Redis2",
+            "node": "Switch1",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Merge results2",
-            "type": "main",
-            "index": 1
           }
         ]
       ]
     },
-    "Redis1": {
-      "main": [
-        []
-      ]
-    },
-    "Unexpected WO error": {
-      "main": [
-        []
-      ]
-    },
-    "Redis2": {
+    "Check if exists": {
       "main": [
         [
           {
-            "node": "Switch1",
+            "node": "Merge results",
             "type": "main",
             "index": 0
           }
@@ -512,18 +474,23 @@
         ]
       ]
     },
-    "Code": {
+    "Add reservation id": {
       "main": [
         [
           {
-            "node": "Send Email",
+            "node": "Check if exists",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Conflict alert",
+            "node": "Merge results2",
             "type": "main",
-            "index": 0
+            "index": 1
+          },
+          {
+            "node": "Merge results",
+            "type": "main",
+            "index": 1
           }
         ]
       ]
@@ -546,6 +513,43 @@
           }
         ]
       ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Conflict alert1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Email1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis1": {
+      "main": [
+        [
+          {
+            "node": "Conflict alert1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Email1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email1": {
+      "main": [
+        []
+      ]
     }
   },
   "active": true,
@@ -554,7 +558,7 @@
     "callerPolicy": "workflowsFromSameOwner",
     "errorWorkflow": "tCSKxIbZoyrgiiO7"
   },
-  "versionId": "cbc8ebbd-4e02-4bc1-bfb2-021ef6c33db0",
+  "versionId": "4586c88d-e01a-405e-aca2-8930a34ce32b",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "08c4153b45f22779282b523b971a718ee9621fdc1eefc239e2375b2f35f040cd"
