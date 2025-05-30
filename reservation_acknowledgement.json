@@ -3,15 +3,15 @@
   "nodes": [
     {
       "parameters": {
-        "jsCode": "const payloadStr = $input.first().json.body.payload;\n\n// Parse it into a proper object\nconst payload = JSON.parse(payloadStr);\nconsole.log(payload.response_url)\nconst reservationId = payload.actions[0].value;\nreturn [\n  {\n    json: {\n      reservationId,\n      slack_response_url: payload.response_url\n    }\n  }\n];\n"
+        "jsCode": "const payloadStr = $input.first().json.body.payload;\n\n// Parse it into a proper object\nconst payload = JSON.parse(payloadStr);\nconsole.log(payload.response_url)\nconst reservationId = payload.actions[0].value;\nconst messageTs = payload.container.message_ts;\nreturn [\n  {\n    json: {\n      reservationId,\n      messageTs,\n      slack_response_url: payload.response_url\n    }\n  }\n];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -80,
-        -225
+        -220,
+        -585
       ],
-      "id": "1e8bdb9c-de93-4073-b38c-064dae7295ae",
+      "id": "35a25a76-7e60-4238-9331-004a60b95878",
       "name": "Code1"
     },
     {
@@ -24,10 +24,10 @@
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [
-        160,
-        -380
+        0,
+        -720
       ],
-      "id": "84d38bf0-253e-46f3-a04e-f078fc21590a",
+      "id": "686791a2-1231-4f01-9a0d-ac3b113db4b3",
       "name": "Redis",
       "credentials": {
         "redis": {
@@ -38,15 +38,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = JSON.parse($input.first().json.reservation); // Redis returns stringified JSONconsol\ndata.notification_status = \"resolved\"; // Update the field\nconst reservationId = data.notes.split('/').pop();\n\nreturn [\n  {\n    json: {\n      reservationId,\n      updatedValue: JSON.stringify(data) // prepare to store back in Redis\n    }\n  }\n];\n"
+        "jsCode": "const data = JSON.parse($input.first().json.reservation); // \n\ndata.notification_status = \"resolved\"; // Update the field\nconst reservationId = data.notes.split('/').pop();\n\nreturn [\n  {\n    json: {\n      reservationId,\n      updatedValue: JSON.stringify(data),\n    }\n  }\n];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        380,
-        -380
+        220,
+        -720
       ],
-      "id": "b4292b77-0aaa-4830-97b2-9fbd529d8ee1",
+      "id": "412d7d22-6fe1-4c5a-91e2-9ca1f32d2c4e",
       "name": "Code2"
     },
     {
@@ -61,10 +61,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -300,
-        -225
+        -440,
+        -580
       ],
-      "id": "7cf71a4e-819f-459b-a9af-9216d95861bc",
+      "id": "347b32f6-8e50-4b52-9317-8ee8b5682c33",
       "name": "Webhook1",
       "webhookId": "36a20985-719e-4cd1-ae46-69a050f044ea"
     },
@@ -77,10 +77,10 @@
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [
-        600,
-        -380
+        440,
+        -720
       ],
-      "id": "a619eabe-4551-4c2c-868f-4c3627e95dbc",
+      "id": "79ae838b-1c1a-4223-b587-15a6bf94ecea",
       "name": "Redis3",
       "credentials": {
         "redis": {
@@ -91,11 +91,51 @@
     },
     {
       "parameters": {
+        "mode": "mergeByIndex"
+      },
+      "name": "Merge results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        660,
+        -600
+      ],
+      "id": "1329b0c1-ea3d-4703-85fc-4c14b275d544"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.update",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SLACK_BOT_API_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"ts\": \"{{ $json.messageTs }}\",\n  \"channel\": \"C08GS5XHR42\",\n  \"text\": \":white_check_mark: Rezerwacja została odhaczona!\",\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"✅ Rezerwacja Odhaczona\",\n        \"emoji\": true\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Szczegóły jaka to była rezerwacja - tutaj* \\n🔗https://autoserwis.oponeo.pl/rezerwacja/{{ $json.reservationId }}\"\n      }\n    }\n  ]\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        980,
+        -600
+      ],
+      "id": "110a45a0-21a9-4364-8d95-bdf39b8e3d87",
+      "name": "confirm via slack new api"
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "={{ $json.slack_response_url }}",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"replace_original\": true,\n  \"blocks\": [\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \":white_check_mark: Odhaczona!\"\n      }\n    }\n  ]\n}",
+        "jsonBody": "{\n  \"replace_original\": false,\n  \"channel\": \"C08GS5XHR42\",\n  \"blocks\": [\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \":white_check_mark: Odhaczona!\"\n      }\n    }\n  ]\n}",
         "options": {
           "response": {
             "response": {}
@@ -105,24 +145,171 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1020,
-        -225
+        980,
+        -340
       ],
-      "id": "264739f5-5d25-4f86-b2ae-07e2329e1865",
-      "name": "HTTP Request"
+      "id": "3b12a08e-ad51-4c33-9753-5e75eedd603b",
+      "name": "confirm via slack old api"
     },
     {
       "parameters": {
-        "mode": "mergeByIndex"
+        "path": "74730634-b4fb-4598-ab88-7d37e98ab843",
+        "responseMode": "responseNode",
+        "options": {}
       },
-      "name": "Merge results",
-      "type": "n8n-nodes-base.merge",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -440,
+        -1020
+      ],
+      "id": "42625668-72bc-4069-b9cc-015f4e6b39f3",
+      "name": "Webhook",
+      "webhookId": "74730634-b4fb-4598-ab88-7d37e98ab843"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [
+        1100,
+        -1020
+      ],
+      "id": "54199b92-a198-4987-a348-419178686ff9",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      body: `\n        <!DOCTYPE html>\n        <html lang=\"pl\">\n        <head>\n          <meta charset=\"UTF-8\">\n          <title>Rezerwacja odhaczona</title>\n          <style>\n            body {\n              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n              text-align: center;\n              margin: 0;\n              padding: 0;\n              background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);\n              display: flex;\n              justify-content: center;\n              align-items: center;\n              min-height: 100vh;\n              color: #333;\n            }\n            .container {\n              background: #fff;\n              padding: 50px 60px;\n              border-radius: 12px;\n              box-shadow: 0 10px 25px rgba(0,0,0,0.1);\n              display: inline-block;\n              max-width: 500px;\n              width: 90%;\n            }\n            h1 {\n              color: #2c3e50;\n              font-size: 3em; /* Further increased font size for emphasis */\n              font-weight: 700; /* Ensure bold font weight */\n              margin-top: 0; /* Adjusted margin */\n              margin-bottom: 25px; /* Adjusted margin */\n              display: flex;\n              align-items: center;\n              justify-content: center;\n              text-shadow: 1px 1px 2px rgba(0,0,0,0.05); /* Subtle text shadow */\n            }\n            .checkmark {\n              color: #27ae60; /* Green color for checkmark */\n              font-size: 1em; /* Adjusted to be relative to the new h1 size, but not overly dominant */\n              margin-right: 15px;\n              font-weight: bold; /* Checkmark remains bold */\n            }\n            p {\n              font-size: 1.1em;\n              color: #555;\n              line-height: 1.6;\n              margin-bottom: 30px;\n            }\n            a.button {\n              display: inline-block;\n              margin-top: 20px;\n              background-color: #3498db; /* A softer, modern blue */\n              color: #fff;\n              padding: 15px 30px;\n              border-radius: 8px;\n              text-decoration: none;\n              font-weight: bold;\n              font-size: 1em;\n              transition: background-color 0.3s ease, transform 0.2s ease;\n            }\n            a.button:hover {\n              background-color: #2980b9; /* Darker shade on hover */\n              transform: translateY(-2px); /* Slight lift on hover */\n            }\n          </style>\n        </head>\n        <body>\n          <div class=\"container\">\n            <h1><span class=\"checkmark\">✔</span> Odhaczona!</h1>\n          </div>\n        </body>\n        </html>\n      `\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -920
+      ],
+      "id": "789efa6b-1f22-4c88-a9ef-dcaf39c82305",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "=reservation",
+        "key": "={{ $json.reservationId }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [
-        800,
-        -225
+        0,
+        -1020
       ],
-      "id": "d9f1e88b-ebba-495e-ac62-6c88ec335b79"
+      "id": "51cb1d04-a5a9-4e20-9ba5-ec60ca190a8a",
+      "name": "Redis1",
+      "credentials": {
+        "redis": {
+          "id": "cNNgFFW5q5OqE5Wt",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = JSON.parse($input.first().json.reservation); // Redis returns stringified JSON\n\n// If already resolved, return early and tag it\nif (data.notification_status === \"resolved\") {\n  return [\n    {\n      json: {\n        reservationId: data.notes.split('/').pop(),\n        alreadyResolved: true\n      }\n    }\n  ];\n}\n\n// Otherwise update and return\ndata.notification_status = \"resolved\";\nconst reservationId = data.notes.split('/').pop();\n\nreturn [\n  {\n    json: {\n      reservationId,\n      updatedValue: JSON.stringify(data),\n      alreadyResolved: false\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        -1020
+      ],
+      "id": "7ad4127b-f8b4-4932-8a29-997a6014107a",
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $json.reservationId }}",
+        "value": "={{ $json.updatedValue }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        660,
+        -920
+      ],
+      "id": "648a0cbe-9d24-41c3-9ef0-493f27a2139b",
+      "name": "Redis4",
+      "credentials": {
+        "redis": {
+          "id": "cNNgFFW5q5OqE5Wt",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      reservationId: $json.query.reservationId\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -220,
+        -1020
+      ],
+      "id": "1489febc-a606-418e-b67d-4417c120d9f8",
+      "name": "Code4"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a17bb102-368e-4474-ad2c-738900652685",
+              "leftValue": "={{ $json.alreadyResolved }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        -1020
+      ],
+      "id": "7e202a95-4635-415e-81b3-730b62131a47",
+      "name": "Check if already resolved"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      body: `\n        <!DOCTYPE html>\n        <html lang=\"pl\">\n        <head>\n          <meta charset=\"UTF-8\">\n          <title>Rezerwacja odhaczona</title>\n          <style>\n            body {\n              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n              text-align: center;\n              margin: 0;\n              padding: 0;\n              background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);\n              display: flex;\n              justify-content: center;\n              align-items: center;\n              min-height: 100vh;\n              color: #333;\n            }\n            .container {\n              background: #fff;\n              padding: 50px 60px;\n              border-radius: 12px;\n              box-shadow: 0 10px 25px rgba(0,0,0,0.1);\n              display: inline-block;\n              max-width: 500px;\n              width: 90%;\n            }\n            h1 {\n              color: #2c3e50;\n              font-size: 3em; /* Further increased font size for emphasis */\n              font-weight: 700; /* Ensure bold font weight */\n              margin-top: 0; /* Adjusted margin */\n              margin-bottom: 25px; /* Adjusted margin */\n              display: flex;\n              align-items: center;\n              justify-content: center;\n              text-shadow: 1px 1px 2px rgba(0,0,0,0.05); /* Subtle text shadow */\n            }\n            .checkmark {\n              color: #c0392b; /* Red crossmark */\n              font-size: 1em; /* Adjusted to be relative to the new h1 size, but not overly dominant */\n              margin-right: 15px;\n              font-weight: bold; /* Checkmark remains bold */\n            }\n            p {\n              font-size: 1.1em;\n              color: #555;\n              line-height: 1.6;\n              margin-bottom: 30px;\n            }\n            a.button {\n              display: inline-block;\n              margin-top: 20px;\n              background-color: #3498db; /* A softer, modern blue */\n              color: #fff;\n              padding: 15px 30px;\n              border-radius: 8px;\n              text-decoration: none;\n              font-weight: bold;\n              font-size: 1em;\n              transition: background-color 0.3s ease, transform 0.2s ease;\n            }\n            a.button:hover {\n              background-color: #2980b9; /* Darker shade on hover */\n              transform: translateY(-2px); /* Slight lift on hover */\n            }\n          </style>\n        </head>\n        <body>\n          <div class=\"container\">\n            <h1><span class=\"checkmark\">❌</span> Rezerwacja była już odhaczona!</h1>\n          </div>\n        </body>\n        </html>\n      `\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -1120
+      ],
+      "id": "0868470b-09b8-45d4-b8d4-9a0cef9ec5c1",
+      "name": "Code5"
     }
   ],
   "pinData": {},
@@ -191,7 +378,107 @@
       "main": [
         [
           {
-            "node": "HTTP Request",
+            "node": "confirm via slack new api",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis1": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "Check if already resolved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        []
+      ]
+    },
+    "Redis4": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code4": {
+      "main": [
+        [
+          {
+            "node": "Redis1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if already resolved": {
+      "main": [
+        [
+          {
+            "node": "Code5",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Redis4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code5": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
             "type": "main",
             "index": 0
           }
@@ -203,7 +490,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "eb952b64-6ece-4a67-aeff-790c88f281b0",
+  "versionId": "bee22997-4229-449b-b4a3-57afe87468da",
   "meta": {
     "instanceId": "08c4153b45f22779282b523b971a718ee9621fdc1eefc239e2375b2f35f040cd"
   },

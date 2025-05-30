@@ -152,18 +152,6 @@ async function scrape_reservation_details(page, reservation_url, debug_mode = fa
 	try {
 		await page.goto(reservation_url, { waitUntil: 'networkidle' });
 
-		// First check if this is an "Rezerwacja oponeo" page
-		const isOponeoReservation = await page.evaluate(() => {
-			const heading = document.querySelector('h2.bold');
-			return heading && heading.textContent.trim() === 'Rezerwacja oponeo';
-		});
-
-		// If it's not an Oponeo reservation, return null to indicate it should be skipped
-		if (isOponeoReservation) {
-			logger.info(`Skipping non-Oponeo reservation: ${reservation_url}`);
-			return null;
-		}
-
 		logger.info(`Processing Oponeo reservation: ${reservation_url}`);
 
 		const details = await page.evaluate(() => {
@@ -267,33 +255,13 @@ function transform_to_wo_format(reservation) {
 	};
 }
 
-async function save_results_to_json(data) {
-	try {
-		const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-		const file_name = `reservations-${timestamp}.json`;
-		const file_path = path.join(__dirname, file_name);
-
-		const transformed_data = data.map(transform_to_wo_format);
-
-		fs.writeFileSync(
-			file_path,
-			JSON.stringify(transformed_data, null, 2),
-			'utf8'
-		);
-		logger.info(`Results saved to JSON file: ${file_path}`);
-		return file_path;
-	} catch (error) {
-		logger.error(`Error saving results to JSON: ${error.message}`);
-		throw error;
-	}
-}
-
 const get_reservations_from_now_url = () => {
 	const reservations_base_url = process.env.OPONEO_RESERVATIONS_LIST_URL
 	const js_now = new Date();
 	// for debugging
 	// const some_time_ago= new Date(js_now.getTime() - 40 * 24 * 60 * 60 * 1000);
 	const dot_net_now = js_now.getTime() * TICKS_PER_MILLISECOND + EPOCH_TICKS_AT_UNIX_EPOCH;
+	console.log("dot_net_now", dot_net_now);
 
 	return `${reservations_base_url}?data-od=${dot_net_now}`;
 
@@ -314,7 +282,7 @@ app.post('/scrape-oponeo', async (req, res) => {
 	let browser;
 	try {
 		const browser_options = {
-			headless: true,
+			headless: false,
 		};
 
 		browser = await chromium.launch(browser_options);

@@ -2,23 +2,12 @@
   "name": "sync-calendars",
   "nodes": [
     {
-      "parameters": {},
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [
-        -340,
-        -560
-      ],
-      "id": "909cded6-be69-4a36-a243-76d2f64e5edc",
-      "name": "Manual Trigger"
-    },
-    {
       "parameters": {
         "rule": {
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "* * * * *"
+              "expression": "*/15 * * * *"
             }
           ]
         }
@@ -26,8 +15,8 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -700,
-        -780
+        -300,
+        -560
       ],
       "id": "50b3938f-fb06-4bb4-96b4-e1e60f8f146d",
       "name": "Schedule Trigger"
@@ -58,11 +47,12 @@
         -560
       ],
       "id": "4516b9d9-6380-4f97-a796-5dd6cf7152e8",
-      "name": "Scrape Oponeo"
+      "name": "Scrape Oponeo",
+      "retryOnFail": true
     },
     {
       "parameters": {
-        "jsCode": "function get_formatted_date(local_date) {\n\tconst warsaw_formatter = new Intl.DateTimeFormat('en-US', {\n\t\ttimeZone: 'Europe/Warsaw',\n\t\tyear: 'numeric',\n\t\tmonth: '2-digit',\n\t\tday: '2-digit',\n\t\thour: '2-digit',\n\t\tminute: '2-digit',\n\t\tsecond: '2-digit',\n\t\thour12: false\n\t});\n\n\tconst [\n\t\t{ value: month },,\n\t\t{ value: day },,\n\t\t{ value: year },,\n\t\t{ value: hour },,\n\t\t{ value: minute },,\n\t\t{ value: second }\n\t] = warsaw_formatter.formatToParts(local_date);\n\n\treturn new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}.000Z`);\n}\nfunction transform_to_wo_format(reservation) {\n    const reservation_details = reservation.details\n\tconst [start, end] = reservation_details.time.split(' - ');\n\n\tconst [day, month, year] = reservation_details.date.split('-').map(Number);\n\tconst [startHour, startMinute] = start.split(':').map(Number);\n\tconst [endHour, endMinute] = end.split(':').map(Number);\n\n\tconst local_start_date = new Date(year, month - 1, day, startHour, startMinute);\n\tconst local_end_date = new Date(year, month - 1, day, endHour, endMinute);\n\n\tconst start_date_time = get_formatted_date(local_start_date);\n\tconst end_date_time = get_formatted_date(local_end_date);\n\n\treturn {\n        type: '1',\n\t\tworkspace: 13096,\n        time: 30,\n\t\tlicencePlate: reservation_details.registration_number || '',\n\t\tfirstname: reservation_details.client_name.split(\" \")[0] || ' ',\n\t\tlastname: reservation_details.client_name.split(\" \")[1] || ' ',\n\t\tphone: reservation_details.phone.replace(/\\D/g, '') || '',\n\t\temail: reservation_details.email || '',\n        category: 1,\n\t\tnotes: reservation.reservation_url || '',\n\t\tfromDate: start_date_time.toISOString(),\n\t\ttoDate: end_date_time.toISOString(),\n        reservationType: \"1\",\n\t};\n}\nconst inputData = $input.all().map(i => i.json);\n\nif(inputData[0].data.length === 0){\n  return [];\n}\n\nconst transformed_data = [];\n\nfor (const reservation of inputData[0].data) {\n  transformed_data.push(transform_to_wo_format(reservation));\n}\n\nreturn transformed_data.map(item => ({ json: item }));\n"
+        "jsCode": "function transform_to_wo_format(reservation) {\n    const reservation_details = reservation.details\n\tconst [start, end] = reservation_details.time.split(' - ');\n\n\tconst [day, month, year] = reservation_details.date.split('-').map(Number);\n\tconst [startHour, startMinute] = start.split(':').map(Number);\n\tconst [endHour, endMinute] = end.split(':').map(Number);\n\n\tconst local_start_date = new Date(year, month - 1, day, startHour, startMinute);\n\tconst local_end_date = new Date(year, month - 1, day, endHour, endMinute);\n    const MANUAL_OFFSET = 60 * 60 * 1000;\n    const start_date_time = new Date(\n      local_start_date.getTime() - local_start_date.getTimezoneOffset() * 60000 - MANUAL_OFFSET\n    );\n    const end_date_time = new Date(\n      local_end_date.getTime()   - local_end_date.getTimezoneOffset()   * 60000 - MANUAL_OFFSET\n    );\n  \n\treturn {\n        type: '1',\n\t\tworkspace: 13096,\n        time: 30,\n\t\tlicencePlate: reservation_details.registration_number || '',\n\t\tfirstname: reservation_details.client_name.split(\" \")[0] || ' ',\n\t\tlastname: reservation_details.client_name.split(\" \")[1] || ' ',\n\t\tphone: reservation_details.phone.replace(/\\D/g, '') || '',\n\t\temail: reservation_details.email || '',\n        category: 1,\n\t\tnotes: reservation.reservation_url || '',\n\t\tfromDate: start_date_time,\n\t\ttoDate: end_date_time,\n        reservationType: \"1\",\n\t};\n}\nconst inputData = $input.all().map(i => i.json);\n\nif(inputData[0].data.length === 0){\n  return [];\n}\n\nconst transformed_data = [];\n\nfor (const reservation of inputData[0].data) {\n  transformed_data.push(transform_to_wo_format(reservation));\n}\n\nreturn transformed_data.map(item => ({ json: item }));\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -99,6 +89,7 @@
       ],
       "id": "ae88fece-cecf-4125-b415-8bac8bab4336",
       "name": "POST to WO calendar",
+      "retryOnFail": true,
       "onError": "continueRegularOutput"
     },
     {
@@ -123,7 +114,7 @@
           "mode": "id"
         },
         "messageType": "block",
-        "blocksUi": "={\n  \"blocks\": [\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*⚠️ Konflikt rezerwacji na Oponeo!*\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Klient:*\\n{{ $json.firstname }} {{ $json.lastname }}\\n{{ $json.email }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Termin:*\\n• Od: {{ DateTime.fromISO($json.fromDate).setLocale('pl').toFormat('d LLLL yyyy, HH:mm') }}\\n• Do: {{ DateTime.fromISO($json.toDate).setLocale('pl').toFormat('d LLLL yyyy, HH:mm') }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Nr rejestracyjny:*\\n{{ $json.licencePlate }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Nr telefonu:*\\n{{ $json.phone }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Oponeo link:*\\n<{{ $json.notes }}|Kliknij tutaj>\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Wymiana opon wolne terminy:*\\n<https://serwis.wymianaopon.pl/dostepne|Kliknij tutaj>\"\n        }\n      ]\n    },\n    {\n      \"type\": \"divider\"\n    },\n    {\n      \"type\": \"actions\",\n      \"elements\": [\n        {\n          \"type\": \"button\",\n          \"action_id\": \"delete_reservation\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"✅ Odhaczona?\"\n          },\n          \"value\": \"{{ $json.notes.split('/').pop() }}\"\n        }\n      ]\n    }\n  ]\n}\n",
+        "blocksUi": "={\n  \"blocks\": [\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*⚠️ Konflikt rezerwacji na Oponeo!*\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Klient:*\\n{{ $json.firstname }} {{ $json.lastname }}\\n{{ $json.email }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Termin:*\\n• Od: {{ DateTime.fromISO($json.fromDate).toFormat('d LLLL yyyy, HH:mm') }}\\n• Do: {{ DateTime.fromISO($json.toDate).toFormat('d LLLL yyyy, HH:mm') }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Nr rejestracyjny:*\\n{{ $json.licencePlate }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Nr telefonu:*\\n{{ $json.phone }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Oponeo link:*\\n<{{ $json.notes }}|Kliknij tutaj>\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Wymiana opon wolne terminy:*\\n<https://serwis.wymianaopon.pl/dostepne|Kliknij tutaj>\"\n        }\n      ]\n    },\n    {\n      \"type\": \"divider\"\n    },\n    {\n      \"type\": \"actions\",\n      \"elements\": [\n       {\n        \"type\": \"button\",\n        \"action_id\": \"delete_reservation\",\n        \"text\": {\n          \"type\": \"plain_text\",\n          \"text\": \"📝 Odhaczona?\"\n        },\n        \"value\": \"{{ $json.notes.split('/').pop() }}\",\n        \"confirm\": {\n          \"title\": {\n            \"type\": \"plain_text\",\n            \"text\": \"Potwierdzenie\"\n          },\n          \"text\": {\n            \"type\": \"mrkdwn\",\n            \"text\": \"Czy na pewno chcesz oznaczyć tę rezerwację jako odhaczoną?\"\n          },\n          \"confirm\": {\n            \"type\": \"plain_text\",\n            \"text\": \"Odhacz\"\n          },\n          \"deny\": {\n            \"type\": \"plain_text\",\n            \"text\": \"Anuluj\"\n          }\n  }\n}\n      ]\n    }\n  ]\n}\n",
         "text": "={{ $json }}",
         "otherOptions": {
           "includeLinkToWorkflow": false,
@@ -134,7 +125,7 @@
       "typeVersion": 2.3,
       "position": [
         1900,
-        -640
+        -560
       ],
       "id": "37791939-cab6-4c8d-94dc-000c8d709d83",
       "name": "Conflict alert",
@@ -218,7 +209,7 @@
       "parameters": {
         "content": "## If we need it, it's here",
         "height": 240,
-        "width": 300
+        "width": 560
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -247,8 +238,8 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
       "position": [
-        1840,
-        -120
+        1500,
+        400
       ],
       "id": "c0f27675-f790-4de1-b163-ad18e8acb34a",
       "name": "Unexpected WO error",
@@ -302,7 +293,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1420,
+        1620,
         -720
       ],
       "id": "a82e0e83-b02f-42ed-8330-07006f4bc95f",
@@ -394,11 +385,37 @@
       ],
       "id": "17bf3f2d-d22d-43af-b5e1-ccff68d89dc7",
       "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "fromEmail": "przemswiercz@gmail.com",
+        "toEmail": "hurt@digito.com.pl",
+        "subject": "Konflikt rezerwacji na Oponeo!",
+        "html": "={{(() => {\n  const data = $json;\n  const from = DateTime.fromISO(data.fromDate).setLocale('pl').toFormat('d LLLL yyyy, HH:mm');\n  const to = DateTime.fromISO(data.toDate).setLocale('pl').toFormat('d LLLL yyyy, HH:mm');\n  const reservationId = data.notes.split('/').pop();\n\n  return `\n    <div style=\"max-width:600px; margin:auto; font-family:Arial,sans-serif; background:#f9f9f9; border-radius:8px; padding:20px; border:1px solid #e0e0e0; color:#333;\">\n      <h2 style=\"color:#0d6efd;\">📝 Oponeo Nowa Rezerwacja</h2>\n      <table cellpadding=\"8\" cellspacing=\"0\" style=\"width:100%; font-size:15px;\">\n        <tr>\n          <td><strong>Imię:</strong></td>\n          <td>${data.firstname}</td>\n        </tr>\n        <tr>\n          <td><strong>Nazwisko:</strong></td>\n          <td>${data.lastname}</td>\n        </tr>\n        <tr>\n          <td><strong>Numer Rejestracyjny:</strong></td>\n          <td>${data.licencePlate}</td>\n        </tr>\n        <tr>\n          <td><strong>Telefon:</strong></td>\n          <td>${data.phone}</td>\n        </tr>\n        <tr>\n          <td><strong>Email:</strong></td>\n          <td>${data.email}</td>\n        </tr>\n        <tr>\n          <td><strong>Data:</strong></td>\n          <td>${from} – ${to}</td>\n        </tr>\n        <tr>\n          <td><strong>Notatki:</strong></td>\n          <td><a href=\"${data.notes}\" style=\"color:#0d6efd;\" target=\"_blank\">${data.notes}</a></td>\n        </tr>\n        <tr>\n          <td><strong>Status:</strong></td>\n          <td>Oczekująca</td>\n        </tr>\n      </table>\n\n      <div style=\"text-align:center; margin-top:30px;\">\n        <a href=\"https://own8n.bieda.it/webhook/74730634-b4fb-4598-ab88-7d37e98ab843?reservationId=${reservationId}\" target=\"_blank\" \n           style=\"background-color:#198754; color:white; padding:12px 24px; text-decoration:none; font-weight:bold; border-radius:6px; display:inline-block;\">\n          ✅ Odhacz\n        </a>\n      </div>\n    </div>\n  `;\n})()}}\n",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1900,
+        -800
+      ],
+      "id": "0dff1a4a-5077-4297-ad61-1faaf901e09b",
+      "name": "Send Email",
+      "webhookId": "6104ee90-2ad8-49a4-979e-edf6b8e756f8",
+      "credentials": {
+        "smtp": {
+          "id": "2Ayq1mU4M5oTEJs0",
+          "name": "SMTP account"
+        }
+      }
     }
   ],
   "pinData": {},
   "connections": {
-    "Manual Trigger": {
+    "Schedule Trigger": {
       "main": [
         [
           {
@@ -407,11 +424,6 @@
             "index": 0
           }
         ]
-      ]
-    },
-    "Schedule Trigger": {
-      "main": [
-        []
       ]
     },
     "Scrape Oponeo": {
@@ -470,13 +482,7 @@
     },
     "Redis1": {
       "main": [
-        [
-          {
-            "node": "Conflict alert",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Unexpected WO error": {
@@ -510,6 +516,11 @@
       "main": [
         [
           {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          },
+          {
             "node": "Conflict alert",
             "type": "main",
             "index": 0
@@ -537,13 +548,13 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
     "errorWorkflow": "tCSKxIbZoyrgiiO7"
   },
-  "versionId": "4908f3ce-996f-40de-8a6e-62c7766f3df7",
+  "versionId": "cbc8ebbd-4e02-4bc1-bfb2-021ef6c33db0",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "08c4153b45f22779282b523b971a718ee9621fdc1eefc239e2375b2f35f040cd"
