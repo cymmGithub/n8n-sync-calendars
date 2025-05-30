@@ -282,7 +282,7 @@ app.post('/scrape-oponeo', async (req, res) => {
 	let browser;
 	try {
 		const browser_options = {
-			headless: false,
+			headless: true,
 		};
 
 		browser = await chromium.launch(browser_options);
