@@ -1,5 +1,5 @@
 {
-  "name": "reservation acknowledgement",
+  "name": "notify acknowledgement",
   "nodes": [
     {
       "parameters": {
@@ -8,10 +8,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -220,
-        -585
+        -1100,
+        540
       ],
-      "id": "35a25a76-7e60-4238-9331-004a60b95878",
+      "id": "f0e06c39-719d-447e-93e9-d3bc8e8850eb",
       "name": "Code1"
     },
     {
@@ -24,14 +24,14 @@
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [
-        0,
-        -720
+        -880,
+        400
       ],
-      "id": "686791a2-1231-4f01-9a0d-ac3b113db4b3",
+      "id": "d2a5d5de-749a-4909-939b-0c01bd37306b",
       "name": "Redis",
       "credentials": {
         "redis": {
-          "id": "cNNgFFW5q5OqE5Wt",
+          "id": "vyShnTkoMsjmRs3g",
           "name": "Redis account"
         }
       }
@@ -43,10 +43,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        220,
-        -720
+        -660,
+        400
       ],
-      "id": "412d7d22-6fe1-4c5a-91e2-9ca1f32d2c4e",
+      "id": "8b6c4adb-387f-4a5d-b79d-639a6028e101",
       "name": "Code2"
     },
     {
@@ -61,10 +61,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -440,
-        -580
+        -1320,
+        540
       ],
-      "id": "347b32f6-8e50-4b52-9317-8ee8b5682c33",
+      "id": "1e876226-a580-40fa-ba47-d84d87d39001",
       "name": "Webhook1",
       "webhookId": "36a20985-719e-4cd1-ae46-69a050f044ea"
     },
@@ -77,14 +77,14 @@
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [
-        440,
-        -720
+        -440,
+        400
       ],
-      "id": "79ae838b-1c1a-4223-b587-15a6bf94ecea",
+      "id": "d14e36a6-e946-4df2-a0b7-7ad1306f8f31",
       "name": "Redis3",
       "credentials": {
         "redis": {
-          "id": "cNNgFFW5q5OqE5Wt",
+          "id": "vyShnTkoMsjmRs3g",
           "name": "Redis account"
         }
       }
@@ -97,10 +97,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 1,
       "position": [
-        660,
-        -600
+        -220,
+        520
       ],
-      "id": "1329b0c1-ea3d-4703-85fc-4c14b275d544"
+      "id": "fb469c1c-a18a-4f62-ba3c-edc6f08cae3c"
     },
     {
       "parameters": {
@@ -111,22 +111,22 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.SLACK_BOT_API_KEY}}"
+              "value": "={{ 'Bearer ' + $env.SLACK_BOT_API_KEY }}"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"ts\": \"{{ $json.messageTs }}\",\n  \"channel\": \"C08GS5XHR42\",\n  \"text\": \":white_check_mark: Rezerwacja została odhaczona!\",\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"✅ Rezerwacja Odhaczona\",\n        \"emoji\": true\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Szczegóły jaka to była rezerwacja - tutaj* \\n🔗https://autoserwis.oponeo.pl/rezerwacja/{{ $json.reservationId }}\"\n      }\n    }\n  ]\n}\n",
+        "jsonBody": "={\n  \"ts\": \"{{ $json.messageTs }}\",\n  \"channel\": \"C08GS5XHR42\",\n  \"text\": \":white_check_mark: Rezerwacja została odhaczona!\",\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"✅ Rezerwacja Odhaczona\",\n        \"emoji\": true\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Szczegóły rezerwacji* \\n🔗https://autoserwis.oponeo.pl/rezerwacja/{{ $json.reservationId }}\"\n      }\n    }\n  ]\n}\n",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        980,
-        -600
+        100,
+        520
       ],
-      "id": "110a45a0-21a9-4364-8d95-bdf39b8e3d87",
+      "id": "0ddd2dd7-bf94-4bac-bee5-e2c48e64f84f",
       "name": "confirm via slack new api"
     },
     {
@@ -145,10 +145,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        980,
-        -340
+        100,
+        780
       ],
-      "id": "3b12a08e-ad51-4c33-9753-5e75eedd603b",
+      "id": "9c3b3fef-0001-4c25-a97c-738bb822f89d",
       "name": "confirm via slack old api"
     },
     {
@@ -160,10 +160,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -440,
-        -1020
+        -1320,
+        100
       ],
-      "id": "42625668-72bc-4069-b9cc-015f4e6b39f3",
+      "id": "1dd32ced-0b7a-4350-8680-5d84f6ac28b0",
       "name": "Webhook",
       "webhookId": "74730634-b4fb-4598-ab88-7d37e98ab843"
     },
@@ -176,23 +176,23 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.2,
       "position": [
-        1100,
-        -1020
+        220,
+        100
       ],
-      "id": "54199b92-a198-4987-a348-419178686ff9",
+      "id": "268f3a8d-d3b6-4a65-985e-b9cbcdeb56c6",
       "name": "Respond to Webhook"
     },
     {
       "parameters": {
-        "jsCode": "return [\n  {\n    json: {\n      body: `\n        <!DOCTYPE html>\n        <html lang=\"pl\">\n        <head>\n          <meta charset=\"UTF-8\">\n          <title>Rezerwacja odhaczona</title>\n          <style>\n            body {\n              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n              text-align: center;\n              margin: 0;\n              padding: 0;\n              background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);\n              display: flex;\n              justify-content: center;\n              align-items: center;\n              min-height: 100vh;\n              color: #333;\n            }\n            .container {\n              background: #fff;\n              padding: 50px 60px;\n              border-radius: 12px;\n              box-shadow: 0 10px 25px rgba(0,0,0,0.1);\n              display: inline-block;\n              max-width: 500px;\n              width: 90%;\n            }\n            h1 {\n              color: #2c3e50;\n              font-size: 3em; /* Further increased font size for emphasis */\n              font-weight: 700; /* Ensure bold font weight */\n              margin-top: 0; /* Adjusted margin */\n              margin-bottom: 25px; /* Adjusted margin */\n              display: flex;\n              align-items: center;\n              justify-content: center;\n              text-shadow: 1px 1px 2px rgba(0,0,0,0.05); /* Subtle text shadow */\n            }\n            .checkmark {\n              color: #27ae60; /* Green color for checkmark */\n              font-size: 1em; /* Adjusted to be relative to the new h1 size, but not overly dominant */\n              margin-right: 15px;\n              font-weight: bold; /* Checkmark remains bold */\n            }\n            p {\n              font-size: 1.1em;\n              color: #555;\n              line-height: 1.6;\n              margin-bottom: 30px;\n            }\n            a.button {\n              display: inline-block;\n              margin-top: 20px;\n              background-color: #3498db; /* A softer, modern blue */\n              color: #fff;\n              padding: 15px 30px;\n              border-radius: 8px;\n              text-decoration: none;\n              font-weight: bold;\n              font-size: 1em;\n              transition: background-color 0.3s ease, transform 0.2s ease;\n            }\n            a.button:hover {\n              background-color: #2980b9; /* Darker shade on hover */\n              transform: translateY(-2px); /* Slight lift on hover */\n            }\n          </style>\n        </head>\n        <body>\n          <div class=\"container\">\n            <h1><span class=\"checkmark\">✔</span> Sukces!</h1>\n          </div>\n        </body>\n        </html>\n      `\n    }\n  }\n];\n"
+        "jsCode": "return [\n  {\n    json: {\n      body: `\n        <!DOCTYPE html>\n        <html lang=\"pl\">\n        <head>\n          <meta charset=\"UTF-8\">\n          <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n          <title>Rezerwacja Odhaczona</title>\n          <style>\n            body {\n              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n              background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);\n              margin: 0;\n              padding: 0;\n              display: flex;\n              justify-content: center;\n              align-items: center;\n              height: 100vh;\n              color: #2c3e50;\n            }\n\n            .container {\n              background-color: #ffffff;\n              padding: 50px 40px;\n              border-radius: 12px;\n              box-shadow: 0 12px 30px rgba(0,0,0,0.1);\n              text-align: center;\n              max-width: 280px;\n              width: 90%;\n            }\n\n            h1 {\n              font-size: 2.8em;\n              margin-bottom: 15px;\n              color: #27ae60;\n              text-shadow: 1px 1px 2px rgba(0,0,0,0.06);\n            }\n\n            p {\n              font-size: 1.1em;\n              color: #555555;\n              margin-bottom: 30px;\n            }\n\n            a.button {\n              background-color: #3498db;\n              color: #ffffff;\n              padding: 14px 28px;\n              border-radius: 8px;\n              text-decoration: none;\n              font-weight: bold;\n              font-size: 1em;\n              transition: background-color 0.3s ease, transform 0.2s ease;\n              display: inline-block;\n            }\n\n            a.button:hover {\n              background-color: #2980b9;\n              transform: translateY(-2px);\n            }\n\n            .footer {\n              margin-top: 40px;\n              font-size: 0.9em;\n              color: #888888;\n            }\n\n          </style>\n        </head>\n        <body>\n          <div class=\"container\">\n            <h1>✅ Sukces!</h1>\n            <p>Rezerwacja została pomyślnie odhaczona.</p>\n            <div class=\"footer\">Nie będziesz więcej dostawał notyfikacji na temat tej rezerwacji</div>\n          </div>\n        </body>\n        </html>\n      `\n    }\n  }\n];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
-        -920
+        0,
+        200
       ],
-      "id": "789efa6b-1f22-4c88-a9ef-dcaf39c82305",
+      "id": "2796042e-8806-4f34-bca6-f55d7e9533d4",
       "name": "Code"
     },
     {
@@ -205,14 +205,14 @@
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [
-        0,
-        -1020
+        -880,
+        100
       ],
-      "id": "51cb1d04-a5a9-4e20-9ba5-ec60ca190a8a",
+      "id": "d0d4aaea-bf96-4f15-848c-8f0b4ba718b2",
       "name": "Redis1",
       "credentials": {
         "redis": {
-          "id": "cNNgFFW5q5OqE5Wt",
+          "id": "vyShnTkoMsjmRs3g",
           "name": "Redis account"
         }
       }
@@ -224,10 +224,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        220,
-        -1020
+        -660,
+        100
       ],
-      "id": "7ad4127b-f8b4-4932-8a29-997a6014107a",
+      "id": "ae53f517-6b38-44fb-9b0a-9790ace0359b",
       "name": "Code3"
     },
     {
@@ -239,14 +239,14 @@
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [
-        660,
-        -920
+        -220,
+        200
       ],
-      "id": "648a0cbe-9d24-41c3-9ef0-493f27a2139b",
+      "id": "120f2c85-7cb6-4eff-b0d5-601cc7d2d04e",
       "name": "Redis4",
       "credentials": {
         "redis": {
-          "id": "cNNgFFW5q5OqE5Wt",
+          "id": "vyShnTkoMsjmRs3g",
           "name": "Redis account"
         }
       }
@@ -258,10 +258,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -220,
-        -1020
+        -1100,
+        100
       ],
-      "id": "1489febc-a606-418e-b67d-4417c120d9f8",
+      "id": "9c0808f4-517f-496e-9810-bdfd646d91ca",
       "name": "Code4"
     },
     {
@@ -292,23 +292,23 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        440,
-        -1020
+        -440,
+        100
       ],
-      "id": "7e202a95-4635-415e-81b3-730b62131a47",
+      "id": "0c5f00a9-3f0c-4400-8c2c-b250bc003ba6",
       "name": "Check if already resolved"
     },
     {
       "parameters": {
-        "jsCode": "return [\n  {\n    json: {\n      body: `\n        <!DOCTYPE html>\n        <html lang=\"pl\">\n        <head>\n          <meta charset=\"UTF-8\">\n          <title>Rezerwacja odhaczona</title>\n          <style>\n            body {\n              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n              text-align: center;\n              margin: 0;\n              padding: 0;\n              background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);\n              display: flex;\n              justify-content: center;\n              align-items: center;\n              min-height: 100vh;\n              color: #333;\n            }\n            .container {\n              background: #fff;\n              padding: 50px 60px;\n              border-radius: 12px;\n              box-shadow: 0 10px 25px rgba(0,0,0,0.1);\n              display: inline-block;\n              max-width: 500px;\n              width: 90%;\n            }\n            h1 {\n              color: #2c3e50;\n              font-size: 3em; /* Further increased font size for emphasis */\n              font-weight: 700; /* Ensure bold font weight */\n              margin-top: 0; /* Adjusted margin */\n              margin-bottom: 25px; /* Adjusted margin */\n              display: flex;\n              align-items: center;\n              justify-content: center;\n              text-shadow: 1px 1px 2px rgba(0,0,0,0.05); /* Subtle text shadow */\n            }\n            .checkmark {\n              color: #c0392b; /* Red crossmark */\n              font-size: 1em; /* Adjusted to be relative to the new h1 size, but not overly dominant */\n              margin-right: 15px;\n              font-weight: bold; /* Checkmark remains bold */\n            }\n            p {\n              font-size: 1.1em;\n              color: #555;\n              line-height: 1.6;\n              margin-bottom: 30px;\n            }\n            a.button {\n              display: inline-block;\n              margin-top: 20px;\n              background-color: #3498db; /* A softer, modern blue */\n              color: #fff;\n              padding: 15px 30px;\n              border-radius: 8px;\n              text-decoration: none;\n              font-weight: bold;\n              font-size: 1em;\n              transition: background-color 0.3s ease, transform 0.2s ease;\n            }\n            a.button:hover {\n              background-color: #2980b9; /* Darker shade on hover */\n              transform: translateY(-2px); /* Slight lift on hover */\n            }\n          </style>\n        </head>\n        <body>\n          <div class=\"container\">\n            <h1><span class=\"checkmark\">❌</span> Rezerwacja jest już odhaczona!</h1>\n          </div>\n        </body>\n        </html>\n      `\n    }\n  }\n];\n"
+        "jsCode": "return [\n  {\n    json: {\n      body: `\n        <!DOCTYPE html>\n        <html lang=\"pl\">\n        <head>\n          <meta charset=\"UTF-8\">\n          <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n          <title>Rezerwacja już odhaczona</title>\n          <style>\n            body {\n              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n              text-align: center;\n              margin: 0;\n              padding: 0;\n              background: linear-gradient(135deg, #f5f7fa 0%, #d7dde8 100%);\n              display: flex;\n              justify-content: center;\n              align-items: center;\n              min-height: 100vh;\n              color: #2c3e50;\n            }\n\n            .container {\n              background: #ffffff;\n              padding: 50px 40px;\n              border-radius: 12px;\n              box-shadow: 0 12px 30px rgba(0,0,0,0.1);\n              max-width: 280px;\n              width: 90%;\n            }\n\n            h1 {\n              font-size: 2.6em;\n              font-weight: 700;\n              margin: 0 0 20px;\n              display: flex;\n              align-items: center;\n              justify-content: center;\n              color: #e74c3c;\n              text-shadow: 1px 1px 2px rgba(0,0,0,0.05);\n              flex-wrap: wrap;\n              gap: 10px;\n            }\n\n            .icon {\n              font-size: 1.4em;\n            }\n\n            p {\n              font-size: 1.1em;\n              color: #555555;\n              margin-bottom: 30px;\n              line-height: 1.6;\n            }\n\n            a.button {\n              display: inline-block;\n              background-color: #3498db;\n              color: #ffffff;\n              padding: 14px 28px;\n              border-radius: 8px;\n              text-decoration: none;\n              font-weight: bold;\n              font-size: 1em;\n              transition: background-color 0.3s ease, transform 0.2s ease;\n              margin-top: 10px;\n            }\n\n            a.button:hover {\n              background-color: #2980b9;\n              transform: translateY(-2px);\n            }\n\n            .footer {\n              margin-top: 40px;\n              font-size: 0.9em;\n              color: #888888;\n            }\n          </style>\n        </head>\n        <body>\n          <div class=\"container\">\n            <h1><span class=\"icon\">📝</span> Rezerwacja już została wcześniej odhaczona</h1>\n            <div class=\"footer\">Nie będziesz więcej dostawał notyfikacji na temat tej rezerwacji</div>\n          </div>\n        </body>\n        </html>\n      `\n    }\n  }\n];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
-        -1120
+        0,
+        0
       ],
-      "id": "0868470b-09b8-45d4-b8d4-9a0cef9ec5c1",
+      "id": "5bafc51a-0fea-461b-88b0-e4120d414f65",
       "name": "Code5"
     }
   ],
@@ -429,11 +429,6 @@
         ]
       ]
     },
-    "Respond to Webhook": {
-      "main": [
-        []
-      ]
-    },
     "Redis4": {
       "main": [
         [
@@ -490,12 +485,13 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": "tCSKxIbZoyrgiiO7"
+    "errorWorkflow": "KaXFFdgpVeTvCv45"
   },
-  "versionId": "24f6b743-66c5-4595-ad31-56581b37ee73",
+  "versionId": "862bef24-acf9-4760-98ac-4dc78e4d4dd5",
   "meta": {
-    "instanceId": "08c4153b45f22779282b523b971a718ee9621fdc1eefc239e2375b2f35f040cd"
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3afdfbfa5d26a7497c4c1fb57e1f08ee61ab06b5b5631019bd792afa1c20e360"
   },
-  "id": "M2NqcZj6M1QT2KMt",
+  "id": "X21osiBFFvuH6lWy",
   "tags": []
 }
