@@ -16,6 +16,7 @@ services:
       OPONEO_PASSWORD: ${OPONEO_PASSWORD}
       WEBHOOK_URL: https://${SUBDOMAIN}.${DOMAIN_NAME}/
       GENERIC_TIMEZONE: ${GENERIC_TIMEZONE}
+      TZ: ${TZ}
     volumes:
       - n8n_data:/home/node/.n8n
       - ./local-files:/files
