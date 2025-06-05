@@ -1,7 +1,8 @@
-require('dotenv').config();
 const express = require('express');
 const { chromium } = require('playwright');
 const winston = require('winston');
+
+const router = express.Router();
 
 const TICKS_PER_MILLISECOND = 10_000;
 const EPOCH_TICKS_AT_UNIX_EPOCH = 621_355_968_000_000_000;
@@ -15,13 +16,11 @@ const logger = winston.createLogger({
 	transports: [
 		new winston.transports.File({ filename: 'error.log', level: 'error' }),
 		new winston.transports.File({ filename: 'combined.log' }),
+		new winston.transports.Console({
+			format: winston.format.simple(),
+		}),
 	],
 });
-
-const app = express();
-const port = process.env.PORT || 3001;
-
-app.use(express.json());
 
 async function authenticate_oponeo(page, email, password) {
 	try {
@@ -207,7 +206,7 @@ const get_reservations_from_now_url = () => {
 
 }
 
-app.post('/scrape-oponeo', async (req, res) => {
+router.post('/oponeo', async (req, res) => {
 	const url = process.env.OPONEO_BASE_URL;
 	const {
 		email,
@@ -317,35 +316,4 @@ app.post('/scrape-oponeo', async (req, res) => {
 	}
 });
 
-const server = app.listen(port, () => {
-	console.log(`Advanced scraper server is running on http://localhost:${port}`);
-});
-
-const shutdown = () => {
-	server.close((err) => {
-		console.log('Shutting down the server...');
-		if (err) {
-			console.error('Error during server shutdown:', err);
-			process.exitCode = 1;
-		}
-		process.exit();
-	});
-};
-
-// quit on ctrl-c when running docker in terminal
-process.on('SIGINT', function onSigint() {
-	console.info(
-		'Got SIGINT (aka ctrl-c in docker). Graceful shutdown ',
-		new Date().toISOString(),
-	);
-	shutdown();
-});
-
-// quit properly on docker stop
-process.on('SIGTERM', function onSigterm() {
-	console.info(
-		'Got SIGTERM (docker container stop). Graceful shutdown ',
-		new Date().toISOString(),
-	);
-	shutdown();
-});
+module.exports = router;

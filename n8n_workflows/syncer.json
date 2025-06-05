@@ -24,7 +24,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://oponeo-scraper:3001/scrape-oponeo",
+        "url": "http://sync-service:3001/scrape-oponeo",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -139,7 +139,7 @@
     },
     {
       "parameters": {
-        "content": "# **sync-calendars**\n\n## 1 · Schedule trigger\n- Cron: `*/15 * * * *` (every 15 min)  \n- Kicks off the entire sync loop.\n\n## 2 · Fetch Oponeo reservations\n- HTTP **POST** to local **`oponeo-scraper`** service.  \n- Auth with environment-supplied credentials.\n\n## 3 · Normalize data\n- **Code** node maps each booking to WymianaOpon’s schema.  \n- Converts timestamps to **Europe/Warsaw**, derives `fromDate` / `toDate`.\n\n## 4 · Upstream sync\n- HTTP **POST** → `https://api.wymianaopon.pl/api/events`.  \n- Creates / overwrites calendar slots (idempotent).\n\n## 5 · De-duplication logic\n- Extracts `reservationId` from Oponeo URL.  \n- **Redis** lookup: skip if already processed.  \n- *Switch* classifies state → `pending`, `resolved`, or `new_error`.\n\n## 6 · Alerting paths\n- **Slack** (channel `C08GS5XHR42`) with “📝 Odhaczona?” button.  \n- **HTML e-mail** to owner with one-click “✅ Odhacz” link.  \n- Both include full client/contact & time window.\n\n## 7 · State persistence\n- Writes/updates Redis with `notification_status`, guaranteeing alert idempotency.\n",
+        "content": "# **sync-calendars**\n\n## 1 · Schedule trigger\n- Cron: `*/15 * * * *` (every 15 min)  \n- Kicks off the entire sync loop.\n\n## 2 · Fetch Oponeo reservations\n- HTTP **POST** to local **`server.js`** service.  \n- Auth with environment-supplied credentials.\n\n## 3 · Normalize data\n- **Code** node maps each booking to WymianaOpon’s schema.  \n- Converts timestamps to **Europe/Warsaw**, derives `fromDate` / `toDate`.\n\n## 4 · Upstream sync\n- HTTP **POST** → `https://api.wymianaopon.pl/api/events`.  \n- Creates / overwrites calendar slots (idempotent).\n\n## 5 · De-duplication logic\n- Extracts `reservationId` from Oponeo URL.  \n- **Redis** lookup: skip if already processed.  \n- *Switch* classifies state → `pending`, `resolved`, or `new_error`.\n\n## 6 · Alerting paths\n- **Slack** (channel `C08GS5XHR42`) with “📝 Odhaczona?” button.  \n- **HTML e-mail** to owner with one-click “✅ Odhacz” link.  \n- Both include full client/contact & time window.\n\n## 7 · State persistence\n- Writes/updates Redis with `notification_status`, guaranteeing alert idempotency.\n",
         "height": 860,
         "width": 900
       },

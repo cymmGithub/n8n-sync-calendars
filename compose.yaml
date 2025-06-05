@@ -20,7 +20,7 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
       - ./local-files:/files
-  oponeo-scraper:
+  sync-service:
     build:
       context: .
       dockerfile: Dockerfile
