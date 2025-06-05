@@ -4,4 +4,4 @@ COPY package*.json ./
 RUN npm install --ci --omit=dev || npm install --omit=dev
 COPY . .
 EXPOSE 3001
-CMD [ "node", "server.js.js" ]
+CMD [ "node", "server.js" ]
