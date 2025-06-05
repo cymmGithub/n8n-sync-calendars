@@ -2,8 +2,8 @@ require('dotenv').config();
 const express = require('express');
 
 // Import route modules
-const scraperRoutes = require('./routes/oponeo-scraper');
-const eventsRoutes = require('./routes/wo-events');
+const scraper_routes = require('./routes/oponeo-scraper');
+const events_routes = require('./routes/wo-events');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -11,8 +11,8 @@ const port = process.env.PORT || 3001;
 app.use(express.json());
 
 // Use route modules
-app.use('/scraper', scraperRoutes);
-app.use('/events', eventsRoutes);
+app.use('/oponeo', scraper_routes);
+app.use('/wo', events_routes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
