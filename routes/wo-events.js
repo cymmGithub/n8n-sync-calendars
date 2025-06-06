@@ -1,27 +1,7 @@
 const express = require('express');
-const winston = require('winston');
+const { logger, getCurrentDate } = require('../utils');
 
 const router = express.Router();
-
-const logger = winston.createLogger({
-	level: 'info',
-	format: winston.format.combine(
-		winston.format.timestamp(),
-		winston.format.json()
-	),
-	transports: [
-		new winston.transports.File({ filename: 'error.log', level: 'error' }),
-		new winston.transports.File({ filename: 'combined.log' }),
-		new winston.transports.Console({
-			format: winston.format.simple(),
-		}),
-	],
-});
-
-// Helper function to get current date in YYYY-MM-DD format
-const getCurrentDate = () => {
-	return new Date().toISOString().split('T')[0];
-};
 
 // GET /wo-events - Fetch work order events from WO API
 router.get('/events', async (req, res) => {
