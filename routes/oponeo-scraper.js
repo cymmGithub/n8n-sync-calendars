@@ -439,9 +439,14 @@ router.post('/mutator', async (req, res) => {
 				logger.info(`Setting end time to: ${endDateHour}`);
 				await page.locator('input[name="DateChoose\\.TimeTo"]').click();
 
-				// Look for the end date hour option
-				const endDateLocator = page.getByText(endDateHour).nth(1);
-				const isEndTimeAvailable = (await endDateLocator.count()) > 0;
+				const endDateLocators = page
+					.locator(`div:text("${endDateHour}")`)
+					.filter({
+						hasNot: page.locator('.disabled'),
+					});
+
+				// Check if there's at least one non-disabled matching element
+				const isEndTimeAvailable = (await endDateLocators.count()) > 0;
 
 				if (!isEndTimeAvailable) {
 					throw new Error('HOUR_CONFLICT - End time slot not available');
