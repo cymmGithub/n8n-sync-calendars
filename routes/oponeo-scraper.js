@@ -344,8 +344,9 @@ router.post('/scraper', async (req, res) => {
 });
 
 router.post('/mutator', async (req, res) => {
-	const { email, password, debug_mode = true, reservations = [] } = req.body;
-
+	const { debug_mode = false, reservations = [] } = req.body;
+	const email = process.env.OPONEO_EMAIL;
+	const password = process.env.OPONEO_PASSWORD;
 	if (!email || !password) {
 		return res.status(400).send('Email and password are required');
 	}
