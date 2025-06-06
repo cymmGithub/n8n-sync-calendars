@@ -158,10 +158,7 @@ async function get_all_pages_reservations(page) {
 	}
 }
 
-async function scrape_reservation_details(
-	page,
-	reservation_url,
-) {
+async function scrape_reservation_details(page, reservation_url) {
 	try {
 		await page.goto(reservation_url, { waitUntil: 'networkidle' });
 
@@ -225,7 +222,7 @@ const get_reservations_from_now_url = () => {
 
 router.post('/scraper', async (req, res) => {
 	const url = process.env.OPONEO_BASE_URL;
-	const {debug_mode = false } = req.body;
+	const { debug_mode = false } = req.body;
 	const email = process.env.OPONEO_EMAIL;
 	const password = process.env.OPONEO_PASSWORD;
 
@@ -368,24 +365,22 @@ router.post('/mutator', async (req, res) => {
 			metadata: {
 				timestamp: new Date().toISOString(),
 				processed: 0,
-				message: 'No reservations to process'
-			}
+				message: 'No reservations to process',
+			},
 		});
 	}
 
 	// Helper function to convert .NET ticks to date
 	const convertTicksToDate = (ticks) => {
-		const milliseconds = (ticks - EPOCH_TICKS_AT_UNIX_EPOCH) / TICKS_PER_MILLISECOND;
+		const milliseconds =
+			(ticks - EPOCH_TICKS_AT_UNIX_EPOCH) / TICKS_PER_MILLISECOND;
 		return new Date(milliseconds);
 	};
 
-	// Helper function to format time as HH:MM
 	const formatTime = (date) => {
-		return date.toLocaleTimeString('pl-PL', {
-			hour: '2-digit',
-			minute: '2-digit',
-			hour12: false
-		});
+		const hours = String(date.getHours()).padStart(2, '0');
+		const minutes = String(date.getMinutes()).padStart(2, '0');
+		return `${hours}:${minutes}`;
 	};
 
 	let browser;
@@ -415,7 +410,10 @@ router.post('/mutator', async (req, res) => {
 		// Process each reservation
 		for (let i = 0; i < reservations.length; i++) {
 			const reservation = reservations[i];
-			logger.info(`Processing reservation ${i + 1}/${reservations.length}:`, reservation);
+			logger.info(
+				`Processing reservation ${i + 1}/${reservations.length}:`,
+				reservation
+			);
 
 			try {
 				// Convert .NET ticks to dates
@@ -427,9 +425,11 @@ router.post('/mutator', async (req, res) => {
 				const endDateHour = formatTime(endDate); // e.g., "14:20"
 
 				const licencePlate = reservation.licencePlate || 'WO';
-				const phoneNumber = reservation.phoneNumber || 'BRAK';
+				const phoneNumber = reservation.phoneNumber || 'WO';
 
-				logger.info(`Creating reservation for ${licencePlate} at ${startDate.toISOString()} - ${endDate.toISOString()}`);
+				logger.info(
+					`Creating reservation for ${licencePlate} at ${startDate.toISOString()} - ${endDate.toISOString()}`
+				);
 
 				// Navigate to new reservation page with start date
 				const reservationUrl = `https://autoserwis.oponeo.pl/nowa-rezerwacja?data-od=${startDateTicks}&stanowisko=3166`;
@@ -441,7 +441,7 @@ router.post('/mutator', async (req, res) => {
 
 				// Look for the end date hour option
 				const endDateLocator = page.getByText(endDateHour).nth(1);
-				const isEndTimeAvailable = await endDateLocator.count() > 0;
+				const isEndTimeAvailable = (await endDateLocator.count()) > 0;
 
 				if (!isEndTimeAvailable) {
 					throw new Error('HOUR_CONFLICT - End time slot not available');
@@ -451,18 +451,25 @@ router.post('/mutator', async (req, res) => {
 
 				// Fill vehicle registration number
 				await page.locator('input[name="VehicleRegistrationNumber"]').click();
-				await page.locator('input[name="VehicleRegistrationNumber"]').fill(licencePlate);
+				await page
+					.locator('input[name="VehicleRegistrationNumber"]')
+					.fill(licencePlate);
 
 				// Fill client first name (using phone number as requested)
 				await page.locator('input[name="ClientFirstName"]').click();
 				await page.locator('input[name="ClientFirstName"]').fill(phoneNumber);
 
 				// Submit the reservation
-				await page.locator('a').filter({ hasText: /^Dodaj rezerwację$/ }).click();
+				await page
+					.locator('a')
+					.filter({ hasText: /^Dodaj rezerwację$/ })
+					.click();
 
 				// Wait for success message
 				try {
-					await page.waitForSelector('text=Pomyślnie dodano rezerwację', { timeout: 5000 });
+					await page.waitForSelector('text=Pomyślnie dodano rezerwację', {
+						timeout: 5000,
+					});
 					logger.info(`Successfully created reservation for ${licencePlate}`);
 
 					results.push({
@@ -473,20 +480,22 @@ router.post('/mutator', async (req, res) => {
 						licencePlate: licencePlate,
 						phoneNumber: phoneNumber,
 						startTime: startDate.toISOString(),
-						endTime: endDate.toISOString()
+						endTime: endDate.toISOString(),
 					});
 				} catch (successError) {
 					throw new Error('CREATION_FAILED - Success message not found');
 				}
-
 			} catch (reservationError) {
-				logger.error(`Failed to create reservation ${i + 1}:`, reservationError.message);
+				logger.error(
+					`Failed to create reservation ${i + 1}:`,
+					reservationError.message
+				);
 
 				errors.push({
 					index: i,
 					reservation: reservation,
 					error: reservationError.message,
-					timestamp: new Date().toISOString()
+					timestamp: new Date().toISOString(),
 				});
 
 				// Continue with next reservation
@@ -500,7 +509,8 @@ router.post('/mutator', async (req, res) => {
 			total: reservations.length,
 			successful: results.length,
 			failed: errors.length,
-			success_rate: ((results.length / reservations.length) * 100).toFixed(2) + '%'
+			success_rate:
+				((results.length / reservations.length) * 100).toFixed(2) + '%',
 		};
 
 		logger.info('Mutation process complete:', summary);
@@ -513,10 +523,9 @@ router.post('/mutator', async (req, res) => {
 			metadata: {
 				timestamp: new Date().toISOString(),
 				processed: reservations.length,
-				authentication: 'successful'
-			}
+				authentication: 'successful',
+			},
 		});
-
 	} catch (error) {
 		logger.error('Error during mutation process', {
 			error: error.message,
@@ -532,7 +541,7 @@ router.post('/mutator', async (req, res) => {
 			error: error.message,
 			details: 'An error occurred during the mutation process',
 			partial_results: results,
-			errors: errors
+			errors: errors,
 		});
 	}
 });
