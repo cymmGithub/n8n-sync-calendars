@@ -219,20 +219,14 @@ router.post('/mutator', async (req, res) => {
 				logger.info(`Setting end time to: ${endDateHour}`);
 				await page.locator('input[name="DateChoose\\.TimeTo"]').click();
 
-				const endDateLocators = page
-					.locator(`div:text("${endDateHour}")`)
-					.filter({
-						hasNot: page.locator('.disabled'),
-					});
-
-				// Check if there's at least one non-disabled matching element
-				const isEndTimeAvailable = (await endDateLocators.count()) > 0;
+				const endDateLocator = page.getByText(endDateHour).nth(1);
+				const isEndTimeAvailable = (await endDateLocator.count()) > 0;
 
 				if (!isEndTimeAvailable) {
 					throw new Error('HOUR_CONFLICT - End time slot not available');
 				}
 
-				await endDateLocators.first().click();
+				await endDateLocator.click();
 
 				// Fill vehicle registration number
 				await page.locator('input[name="VehicleRegistrationNumber"]').click();
