@@ -24,7 +24,7 @@ const getCurrentDate = () => {
 };
 
 // GET /wo-events - Fetch work order events from WO API
-router.get('/wo-events', async (req, res) => {
+router.get('/events', async (req, res) => {
 	try {
 		logger.info('Work order events endpoint called');
 

@@ -161,7 +161,6 @@ async function get_all_pages_reservations(page) {
 async function scrape_reservation_details(
 	page,
 	reservation_url,
-	debug_mode = false
 ) {
 	try {
 		await page.goto(reservation_url, { waitUntil: 'networkidle' });
@@ -226,7 +225,9 @@ const get_reservations_from_now_url = () => {
 
 router.post('/scraper', async (req, res) => {
 	const url = process.env.OPONEO_BASE_URL;
-	const { email, password, debug_mode = true } = req.body;
+	const {debug_mode = false } = req.body;
+	const email = process.env.OPONEO_EMAIL;
+	const password = process.env.OPONEO_PASSWORD;
 
 	if (!email || !password) {
 		return res.status(400).send('Email and password are required');
