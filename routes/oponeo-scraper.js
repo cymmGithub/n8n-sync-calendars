@@ -220,10 +220,24 @@ router.post('/mutator', async (req, res) => {
 				await page.locator('input[name="DateChoose\\.TimeTo"]').click();
 
 				const endDateLocator = page.getByText(endDateHour).nth(1);
-				const isEndTimeAvailable = (await endDateLocator.count()) > 0;
 
-				if (!isEndTimeAvailable) {
+				try {
+					await endDateLocator.waitFor({ state: 'attached', timeout: 1000 });
+				} catch (timeoutError) {
 					throw new Error('HOUR_CONFLICT - End time slot not available');
+				}
+
+				// Check if the element has the disabled class
+				const elementClass = await endDateLocator.getAttribute('class');
+				if (elementClass && elementClass.includes('disabled')) {
+					throw new Error('HOUR_CONFLICT - End time slot is disabled');
+				}
+
+				// Also check if element is actually clickable (visible and enabled)
+				try {
+					await endDateLocator.waitFor({ state: 'visible', timeout: 1000 });
+				} catch (visibilityError) {
+					throw new Error('HOUR_CONFLICT - End time slot is not clickable');
 				}
 
 				await endDateLocator.click();
