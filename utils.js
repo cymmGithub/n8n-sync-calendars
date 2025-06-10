@@ -193,11 +193,7 @@ async function scrape_reservation_details(page, reservation_url) {
 				date: get_labels_text_content('Data:'),
 				time: get_labels_text_content('Godzina:'),
 				position: get_labels_text_content('Stanowisko:'),
-				description: `
-					${get_labels_text_content('Wybrany model:')}\n
-					${get_labels_text_content('Kwota pobrania:')}\n
-					${get_produkty_text_content()}
-				`,
+				description: get_produkty_text_content(),
 				client_name: get_labels_text_content('Imię i nazwisko:'),
 				phone: get_labels_text_content('Nr telefonu:'),
 				registration_number: get_labels_text_content('Nr rejestracyjny:'),
