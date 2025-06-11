@@ -35,9 +35,10 @@ async function authenticate_oponeo(page, email, password) {
 		await page.fill('input[name="Login"]', email);
 		await page.fill('input[name="Password"]', password);
 
-		await page.click('a.button.enter');
-
-		await page.waitForNavigation({ waitUntil: 'networkidle' });
+		await Promise.all([
+			page.waitForNavigation({ waitUntil: 'networkidle' }),
+			page.click('button.navigate'),
+		]);
 
 		const current_url = page.url();
 		if (current_url.includes('logowanie')) {
