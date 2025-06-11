@@ -46,7 +46,7 @@ router.post('/scraper', async (req, res) => {
 		logger.info(
 			`Accessing reservations with URL: ${reservations_from_now_url}`
 		);
-		await page.goto(reservations_from_now_url, { waitUntil: 'domcontentloaded' });
+		await page.goto(reservations_from_now_url, { waitUntil: 'load' });
 
 		const reservations_data = await get_all_pages_reservations(page);
 		logger.info(
@@ -213,7 +213,7 @@ router.post('/mutator', async (req, res) => {
 
 				// Navigate to new reservation page with start date
 				const reservationUrl = `https://autoserwis.oponeo.pl/nowa-rezerwacja?data-od=${startDateTicks}&stanowisko=3166`;
-				await page.goto(reservationUrl, { waitUntil: 'domcontentloaded' });
+				await page.goto(reservationUrl, { waitUntil: 'load' });
 
 				// Set end time
 				logger.info(`Setting end time to: ${endDateHour}`);
