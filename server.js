@@ -24,7 +24,7 @@ app.get('/health', (req, res) => {
 });
 
 const server = app.listen(port, () => {
-	console.log(`Advanced scraper server is running on http://localhost:${port}`);
+	console.log(`Scraper is running on http://localhost:${port}`);
 });
 
 const shutdown = () => {
