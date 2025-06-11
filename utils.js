@@ -37,7 +37,7 @@ async function authenticate_oponeo(page, email, password) {
 
 		await Promise.all([
 			page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
-			page.click('button.navigate'),
+			page.click('a.button.enter'),
 		]);
 
 		const current_url = page.url();
