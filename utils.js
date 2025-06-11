@@ -29,14 +29,14 @@ const getCurrentDate = () => {
 async function authenticate_oponeo(page, email, password) {
 	try {
 		await page.goto(process.env.OPONEO_LOGIN_URL, {
-			waitUntil: 'networkidle',
+			waitUntil: 'domcontentloaded',
 		});
 
 		await page.fill('input[name="Login"]', email);
 		await page.fill('input[name="Password"]', password);
 
 		await Promise.all([
-			page.waitForNavigation({ waitUntil: 'networkidle' }),
+			page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
 			page.click('button.navigate'),
 		]);
 
@@ -139,7 +139,7 @@ async function get_all_pages_reservations(page) {
 
 			logger.info(`Navigating to page ${current_page}/${total_pages}`);
 			const next_page_url = `${reservations_from_now_url}&strona=${current_page}`;
-			await page.goto(next_page_url, { waitUntil: 'networkidle' });
+			await page.goto(next_page_url, { waitUntil: 'domcontentloaded' });
 
 			logger.info(`Processing page ${current_page}/${total_pages}`);
 			const page_reservations = await scrape_reservations_list(page);
@@ -165,7 +165,7 @@ async function get_all_pages_reservations(page) {
 
 async function scrape_reservation_details(page, reservation_url) {
 	try {
-		await page.goto(reservation_url, { waitUntil: 'networkidle' });
+		await page.goto(reservation_url, { waitUntil: 'domcontentloaded' });
 
 		logger.info(`Processing Oponeo reservation: ${reservation_url}`);
 
