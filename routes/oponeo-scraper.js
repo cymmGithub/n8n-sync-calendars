@@ -219,28 +219,35 @@ router.post('/mutator', async (req, res) => {
 				logger.info(`Setting end time to: ${endDateHour}`);
 				await page.locator('input[name="DateChoose\\.TimeTo"]').click();
 
-				const endDateLocator = page.getByText(endDateHour).nth(1);
+				const timeSlotLocator = page
+					.locator('div.hours > div')
+					.filter({ hasText: new RegExp(`^${endDateHour}$`) });
+
+				// Wait for the time slot to appear in the DOM.
+				try {
+					await timeSlotLocator.waitFor({ state: 'attached', timeout: 5000 });
+				} catch (error) {
+					throw new Error(
+						`HOUR_NOT_FOUND - Time slot for ${endDateHour} not found.`
+					);
+				}
+
+				const isDisabled = (await timeSlotLocator.getAttribute('class'))?.includes(
+					'disabled'
+				);
+
+				if (isDisabled) {
+					throw new Error(`HOUR_CONFLICT - Time slot ${endDateHour} is disabled.`);
+				}
 
 				try {
-					await endDateLocator.waitFor({ state: 'attached', timeout: 1000 });
-				} catch (timeoutError) {
-					throw new Error('HOUR_CONFLICT - End time slot not available');
+					await timeSlotLocator.click({ timeout: 1000 });
+				} catch (error) {
+					logger.error(`Failed to click time slot ${endDateHour}`, { error });
+					throw new Error(
+						`CLICK_FAILED - Could not click time slot ${endDateHour}. It might be obscured or not interactive.`
+					);
 				}
-
-				// Check if the element has the disabled class
-				const elementClass = await endDateLocator.getAttribute('class');
-				if (elementClass && elementClass.includes('disabled')) {
-					throw new Error('HOUR_CONFLICT - End time slot is disabled');
-				}
-
-				// Also check if element is actually clickable (visible and enabled)
-				try {
-					await endDateLocator.waitFor({ state: 'visible', timeout: 1000 });
-				} catch (visibilityError) {
-					throw new Error('HOUR_CONFLICT - End time slot is not clickable');
-				}
-
-				await endDateLocator.click();
 
 				// Fill vehicle registration number
 				await page.locator('input[name="VehicleRegistrationNumber"]').click();
