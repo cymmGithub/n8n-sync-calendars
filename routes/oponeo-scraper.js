@@ -221,16 +221,7 @@ router.post('/mutator', async (req, res) => {
 
 				const timeSlotLocator = page
 					.locator('div.hours > div')
-					.filter({ hasText: new RegExp(`^${endDateHour}$`) });
-
-				// Wait for the time slot to appear in the DOM.
-				try {
-					await timeSlotLocator.waitFor({ state: 'attached', timeout: 5000 });
-				} catch (error) {
-					throw new Error(
-						`HOUR_NOT_FOUND - Time slot for ${endDateHour} not found.`
-					);
-				}
+					.filter({ hasText: new RegExp(`^${endDateHour}$`) }).nth(1);
 
 				const isDisabled = (await timeSlotLocator.getAttribute('class'))?.includes(
 					'disabled'
