@@ -223,7 +223,7 @@ router.post('/mutator', async (req, res) => {
 					.locator('div.hours > div')
 					.filter({ hasText: new RegExp(`^${endDateHour}$`) }).nth(1);
 
-				const isDisabled = (await timeSlotLocator.getAttribute('class'))?.includes(
+				const isDisabled = (await timeSlotLocator.getAttribute('class', { timeout: 10000 }))?.includes(
 					'disabled'
 				);
 
