@@ -221,7 +221,8 @@ router.post('/mutator', async (req, res) => {
 
 				const timeSlotLocator = page
 					.locator('div.hours > div')
-					.filter({ hasText: new RegExp(`^${endDateHour}$`) }).nth(1);
+					.filter({ hasText: new RegExp(`^${endDateHour}$`) })
+					.nth(endDateHour === '17:00' ? 0 : 1);
 
 				const isDisabled = (await timeSlotLocator.getAttribute('class', { timeout: 10000 }))?.includes(
 					'disabled'
