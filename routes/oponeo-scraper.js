@@ -264,18 +264,22 @@ router.post('/mutator', async (req, res) => {
 					});
 					logger.info(`Successfully created reservation for ${licencePlate}`);
 
-					// Extract the reservation ID from the success message
-					const reservationIdElement = page.locator('p.green > span.bold');
-					const reservationId = await reservationIdElement.innerText();
+					// Click the button to go to the reservation page
+					await page.getByText('Wróć do rezerwacji').click();
 
+					// Wait for navigation and extract numeric ID from URL
+					await page.waitForURL(/\/rezerwacja\/\d+/, { timeout: 10000 });
+					const currentUrl = page.url();
+					const reservationId = currentUrl.split('/').pop();
+					console.log(reservationId);
 					results.push({
 						index: i,
 						success: true,
 						reservation,
-						reservationId: reservationId,
+						reservationId,
 						message: 'Reservation created successfully',
-						licencePlate: licencePlate,
-						phoneNumber: phoneNumber,
+						licencePlate,
+						phoneNumber,
 						startTime: startDate.toISOString(),
 						endTime: endDate.toISOString(),
 					});
