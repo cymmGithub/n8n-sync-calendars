@@ -264,10 +264,15 @@ router.post('/mutator', async (req, res) => {
 					});
 					logger.info(`Successfully created reservation for ${licencePlate}`);
 
+					// Extract the reservation ID from the success message
+					const reservationIdElement = page.locator('p.green > span.bold');
+					const reservationId = await reservationIdElement.innerText();
+
 					results.push({
 						index: i,
 						success: true,
-						reservation: reservation,
+						reservation,
+						reservationId: reservationId,
 						message: 'Reservation created successfully',
 						licencePlate: licencePlate,
 						phoneNumber: phoneNumber,
@@ -275,7 +280,9 @@ router.post('/mutator', async (req, res) => {
 						endTime: endDate.toISOString(),
 					});
 				} catch (successError) {
-					throw new Error('CREATION_FAILED - Success message not found');
+					throw new Error(
+						'CREATION_FAILED - Success message not found or reservation ID could not be extracted.'
+					);
 				}
 			} catch (reservationError) {
 				logger.error(
