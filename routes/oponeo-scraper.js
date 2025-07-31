@@ -345,27 +345,12 @@ router.post('/mutator', async (req, res) => {
 });
 
 router.post('/obliterator', async (req, res) => {
-	const { debug_mode = false, reservations = [] } = req.body;
+	const { debug_mode = false, oponeoReservationId = null } = req.body;
 	const email = process.env.OPONEO_EMAIL;
 	const password = process.env.OPONEO_PASSWORD;
 
 	if (!email || !password) {
 		return res.status(400).send('Email and password are required');
-	}
-
-	// Handle empty array case
-	if (reservations.length === 0) {
-		logger.info('No reservations to process - empty array provided');
-		return res.json({
-			success: true,
-			results: [],
-			errors: [],
-			metadata: {
-				timestamp: new Date().toISOString(),
-				processed: 0,
-				message: 'No reservations to process',
-			},
-		});
 	}
 
 	let browser;
@@ -392,17 +377,7 @@ router.post('/obliterator', async (req, res) => {
 		await authenticate_oponeo(page, email, password);
 		logger.info('Authentication successful, starting reservation obliteration');
 
-		// Process each reservation
-		for (let i = 0; i < reservations.length; i++) {
-			const reservation = reservations[i];
-			logger.info(
-				`Processing reservation ${i + 1}/${reservations.length}:`,
-				reservation
-			);
-
 			try {
-				const { oponeoReservationId } = reservation;
-
 				if (!oponeoReservationId) {
 					throw new Error('MISSING_ID - oponeoReservationId is required');
 				}
@@ -416,60 +391,36 @@ router.post('/obliterator', async (req, res) => {
 				// Wait a moment for the page to fully load
 				await page.waitForTimeout(1000);
 
-				// Get the current URL to verify navigation was successful
-				const currentUrl = page.url();
-				logger.info(`Successfully navigated to: ${currentUrl}`);
+				await page.getByRole('link', { name: 'Usuń rezerwację' }).click();
+				await page.getByText('Usuń', { exact: true }).click();
+
+				await page.waitForTimeout(3000);
+
 
 				results.push({
-					index: i,
 					success: true,
-					reservation,
-					oponeoReservationId,
-					editUrl,
-					currentUrl,
-					message: 'Successfully navigated to reservation edit page',
+					message: `Successfully obliterated ${oponeoReservationId}`,
 					timestamp: new Date().toISOString(),
 				});
 			} catch (reservationError) {
 				logger.error(
-					`Failed to process reservation ${i + 1}:`,
+					`Failed to process reservation ${oponeoReservationId}:`,
 					reservationError.message
 				);
 
 				errors.push({
-					index: i,
-					reservation: reservation,
+					oponeoReservationId,
 					error: reservationError.message,
 					timestamp: new Date().toISOString(),
 				});
-
-				// Continue with next reservation
-				continue;
 			}
-		}
 
 		await browser.close();
 
-		const summary = {
-			total: reservations.length,
-			successful: results.length,
-			failed: errors.length,
-			success_rate:
-				((results.length / reservations.length) * 100).toFixed(2) + '%',
-		};
-
-		logger.info('Obliteration process complete:', summary);
-
 		res.json({
 			success: true,
-			summary: summary,
 			results: results,
 			errors: errors,
-			metadata: {
-				timestamp: new Date().toISOString(),
-				processed: reservations.length,
-				authentication: 'successful',
-			},
 		});
 	} catch (error) {
 		logger.error('Error during obliteration process', {
@@ -486,7 +437,7 @@ router.post('/obliterator', async (req, res) => {
 			error: error.message,
 			details: 'An error occurred during the obliteration process',
 			partial_results: results,
-			errors: errors,
+			errors,
 		});
 	}
 });
