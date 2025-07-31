@@ -10,7 +10,6 @@ const port = process.env.PORT || 3001;
 
 app.use(express.json());
 
-// Use route modules
 app.use('/oponeo', scraper_routes);
 app.use('/wo', events_routes);
 
