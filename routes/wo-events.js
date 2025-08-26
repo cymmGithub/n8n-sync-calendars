@@ -64,7 +64,7 @@ router.get('/events', async (req, res) => {
 				parameters: {
 					page: parseInt(page),
 					itemsPerPage: parseInt(itemsPerPage),
-					updated_at_from: updatedAtFrom,
+					date_from,
 				},
 			},
 		});
