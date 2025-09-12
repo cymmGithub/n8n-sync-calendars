@@ -1,5 +1,6 @@
 const express = require('express');
-const { chromium } = require('playwright');
+const { chromium } = require('playwright-extra');
+const stealth = require('puppeteer-extra-plugin-stealth')();
 const {
 	logger,
 	authenticate_oponeo,
@@ -9,6 +10,14 @@ const {
 	convertTicksToDate,
 	formatTime,
 } = require('../utils');
+
+// Configure stealth plugin to avoid bot detection
+chromium.use(stealth);
+
+// Helper function to add random delays for more human-like behavior
+const randomDelay = (min = 100, max = 300) => {
+	return new Promise(resolve => setTimeout(resolve, Math.random() * (max - min) + min));
+};
 
 const router = express.Router();
 
@@ -25,12 +34,25 @@ router.post('/scraper', async (req, res) => {
 	let browser;
 	try {
 		const browser_options = {
-			headless: true,
+			headless: !debug_mode,
+			args: [
+				'--no-first-run',
+				'--no-default-browser-check',
+				'--disable-blink-features=AutomationControlled',
+				'--disable-features=VizDisplayCompositor',
+				'--disable-backgrounding-occluded-windows',
+				'--disable-renderer-backgrounding',
+				'--disable-background-timer-throttling',
+				'--disable-ipc-flooding-protection',
+			],
 		};
 
 		browser = await chromium.launch(browser_options);
 		const context = await browser.newContext({
 			viewport: { width: 1920, height: 1080 },
+			userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+			locale: 'pl-PL',
+			timezoneId: 'Europe/Warsaw',
 		});
 		const page = await context.newPage();
 
@@ -163,11 +185,24 @@ router.post('/mutator', async (req, res) => {
 	try {
 		const browser_options = {
 			headless: !debug_mode, // Show browser when debugging
+			args: [
+				'--no-first-run',
+				'--no-default-browser-check',
+				'--disable-blink-features=AutomationControlled',
+				'--disable-features=VizDisplayCompositor',
+				'--disable-backgrounding-occluded-windows',
+				'--disable-renderer-backgrounding',
+				'--disable-background-timer-throttling',
+				'--disable-ipc-flooding-protection',
+			],
 		};
 
 		browser = await chromium.launch(browser_options);
 		const context = await browser.newContext({
 			viewport: { width: 1920, height: 1080 },
+			userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+			locale: 'pl-PL',
+			timezoneId: 'Europe/Warsaw',
 		});
 		const page = await context.newPage();
 
@@ -210,6 +245,7 @@ router.post('/mutator', async (req, res) => {
 
 				// Set end time
 				logger.info(`Setting end time to: ${endDateHour}`);
+				await randomDelay(200, 500);
 				await page.locator('input[name="DateChoose\\.TimeTo"]').click();
 
 				const timeSlotLocator = page
@@ -228,6 +264,7 @@ router.post('/mutator', async (req, res) => {
 				}
 
 				try {
+					await randomDelay(100, 300);
 					await timeSlotLocator.click({ timeout: 1000 });
 				} catch (error) {
 					logger.error(`Failed to click time slot ${endDateHour}`, { error });
@@ -237,16 +274,21 @@ router.post('/mutator', async (req, res) => {
 				}
 
 				// Fill vehicle registration number
+				await randomDelay(150, 400);
 				await page.locator('input[name="VehicleRegistrationNumber"]').click();
+				await randomDelay(50, 150);
 				await page
 					.locator('input[name="VehicleRegistrationNumber"]')
 					.fill(licencePlate);
 
 				// Fill client first name (using phone number as requested)
+				await randomDelay(200, 500);
 				await page.locator('input[name="ClientFirstName"]').click();
+				await randomDelay(50, 150);
 				await page.locator('input[name="ClientFirstName"]').fill(phoneNumber);
 
 				// Submit the reservation
+				await randomDelay(300, 600);
 				await page
 					.locator('a')
 					.filter({ hasText: /^Dodaj rezerwację$/ })
@@ -360,11 +402,24 @@ router.post('/obliterator', async (req, res) => {
 	try {
 		const browser_options = {
 			headless: !debug_mode, // Show browser when debugging
+			args: [
+				'--no-first-run',
+				'--no-default-browser-check',
+				'--disable-blink-features=AutomationControlled',
+				'--disable-features=VizDisplayCompositor',
+				'--disable-backgrounding-occluded-windows',
+				'--disable-renderer-backgrounding',
+				'--disable-background-timer-throttling',
+				'--disable-ipc-flooding-protection',
+			],
 		};
 
 		browser = await chromium.launch(browser_options);
 		const context = await browser.newContext({
 			viewport: { width: 1920, height: 1080 },
+			userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+			locale: 'pl-PL',
+			timezoneId: 'Europe/Warsaw',
 		});
 		const page = await context.newPage();
 
