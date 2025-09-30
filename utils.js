@@ -29,15 +29,15 @@ const getCurrentDate = () => {
 async function authenticate_oponeo(page, email, password) {
 	try {
 		await page.goto(process.env.OPONEO_LOGIN_URL, {
-			waitUntil: 'load',
+			waitUntil: 'load', timeout: 60000
 		});
 
 		await page.fill('input[name="Login"]', email);
 		await page.fill('input[name="Password"]', password);
 
 		await Promise.all([
-			page.click('a.button.enter'),
-			page.waitForNavigation({ waitUntil: 'load' }),
+			page.click('a.button.enter', { timeout: 60000 }),
+			page.waitForNavigation({ waitUntil: 'load', timeout: 60000 }),
 		]);
 
 		const current_url = page.url();
