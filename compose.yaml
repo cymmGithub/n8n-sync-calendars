@@ -20,6 +20,7 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
       - ./local-files:/files
+      - ./workflows:/home/node/workflows
   sync-service:
     build:
       context: .
