@@ -47,6 +47,17 @@ router.post('/scraper', async (req, res) => {
 			],
 		};
 
+		// Add proxy if configured
+		if (process.env.PROXY_SERVER) {
+			browser_options.proxy = {
+				server: process.env.PROXY_SERVER,
+			};
+			if (process.env.PROXY_USERNAME) {
+				browser_options.proxy.username = process.env.PROXY_USERNAME;
+				browser_options.proxy.password = process.env.PROXY_PASSWORD;
+			}
+		}
+
 		browser = await chromium.launch(browser_options);
 		const context = await browser.newContext({
 			viewport: { width: 1920, height: 1080 },
@@ -196,6 +207,17 @@ router.post('/mutator', async (req, res) => {
 				'--disable-ipc-flooding-protection',
 			],
 		};
+
+		// Add proxy if configured
+		if (process.env.PROXY_SERVER) {
+			browser_options.proxy = {
+				server: process.env.PROXY_SERVER,
+			};
+			if (process.env.PROXY_USERNAME) {
+				browser_options.proxy.username = process.env.PROXY_USERNAME;
+				browser_options.proxy.password = process.env.PROXY_PASSWORD;
+			}
+		}
 
 		browser = await chromium.launch(browser_options);
 		const context = await browser.newContext({
@@ -413,6 +435,17 @@ router.post('/obliterator', async (req, res) => {
 				'--disable-ipc-flooding-protection',
 			],
 		};
+
+		// Add proxy if configured
+		if (process.env.PROXY_SERVER) {
+			browser_options.proxy = {
+				server: process.env.PROXY_SERVER,
+			};
+			if (process.env.PROXY_USERNAME) {
+				browser_options.proxy.username = process.env.PROXY_USERNAME;
+				browser_options.proxy.password = process.env.PROXY_PASSWORD;
+			}
+		}
 
 		browser = await chromium.launch(browser_options);
 		const context = await browser.newContext({
