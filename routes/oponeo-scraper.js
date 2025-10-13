@@ -16,7 +16,9 @@ chromium.use(stealth);
 
 // Helper function to add random delays for more human-like behavior
 const randomDelay = (min = 100, max = 300) => {
-	return new Promise(resolve => setTimeout(resolve, Math.random() * (max - min) + min));
+	return new Promise((resolve) =>
+		setTimeout(resolve, Math.random() * (max - min) + min)
+	);
 };
 
 const router = express.Router();
@@ -61,7 +63,8 @@ router.post('/scraper', async (req, res) => {
 		browser = await chromium.launch(browser_options);
 		const context = await browser.newContext({
 			viewport: { width: 1920, height: 1080 },
-			userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+			userAgent:
+				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
 			locale: 'pl-PL',
 			timezoneId: 'Europe/Warsaw',
 		});
@@ -222,7 +225,8 @@ router.post('/mutator', async (req, res) => {
 		browser = await chromium.launch(browser_options);
 		const context = await browser.newContext({
 			viewport: { width: 1920, height: 1080 },
-			userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+			userAgent:
+				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
 			locale: 'pl-PL',
 			timezoneId: 'Europe/Warsaw',
 		});
@@ -244,19 +248,21 @@ router.post('/mutator', async (req, res) => {
 				`Processing reservation ${i + 1}/${reservations.length}:`,
 				reservation
 			);
+			let reservationId;
+
+			// Convert .NET ticks to dates
+			const startDate = convertTicksToDate(reservation.startDate);
+			const endDate = convertTicksToDate(reservation.endDate);
+
+			// Format for URL (YYYY-MM-DD format but we need ticks for the URL)
+			const startDateTicks = reservation.startDate;
+			const endDateHour = formatTime(endDate); // e.g., "14:20"
+
+			const licencePlate = reservation.licencePlate || 'WO';
+			const phoneNumber = reservation.phoneNumber || 'WO';
+
 
 			try {
-				// Convert .NET ticks to dates
-				const startDate = convertTicksToDate(reservation.startDate);
-				const endDate = convertTicksToDate(reservation.endDate);
-
-				// Format for URL (YYYY-MM-DD format but we need ticks for the URL)
-				const startDateTicks = reservation.startDate;
-				const endDateHour = formatTime(endDate); // e.g., "14:20"
-
-				const licencePlate = reservation.licencePlate || 'WO';
-				const phoneNumber = reservation.phoneNumber || 'WO';
-
 				logger.info(
 					`Creating reservation for ${licencePlate} at ${startDate.toISOString()} - ${endDate.toISOString()}`
 				);
@@ -329,7 +335,7 @@ router.post('/mutator', async (req, res) => {
 					// Wait for navigation and extract numeric ID from URL
 					await page.waitForURL(/\/rezerwacja\/\d+/, { timeout: 10000 });
 					const currentUrl = page.url();
-					const reservationId = currentUrl.split('/').pop();
+					reservationId = currentUrl.split('/').pop();
 
 					results.push({
 						index: i,
@@ -355,7 +361,13 @@ router.post('/mutator', async (req, res) => {
 
 				errors.push({
 					index: i,
-					reservation: reservation,
+					reservation,
+					reservationId,
+					message: 'Reservation created successfully',
+					licencePlate,
+					phoneNumber,
+					startTime: startDate.toISOString(),
+					endTime: endDate.toISOString(),
 					error: reservationError.message,
 					timestamp: new Date().toISOString(),
 				});
@@ -450,7 +462,8 @@ router.post('/obliterator', async (req, res) => {
 		browser = await chromium.launch(browser_options);
 		const context = await browser.newContext({
 			viewport: { width: 1920, height: 1080 },
-			userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+			userAgent:
+				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
 			locale: 'pl-PL',
 			timezoneId: 'Europe/Warsaw',
 		});
@@ -465,43 +478,42 @@ router.post('/obliterator', async (req, res) => {
 		await authenticate_oponeo(page, email, password);
 		logger.info('Authentication successful, starting reservation obliteration');
 
-			try {
-				if (!oponeoReservationId) {
-					throw new Error('MISSING_ID - oponeoReservationId is required');
-				}
-
-				// Navigate to the reservation edit page
-				const editUrl = `https://autoserwis.oponeo.pl/edycja-rezerwacji/${oponeoReservationId}`;
-				logger.info(`Navigating to: ${editUrl}`);
-
-				await page.goto(editUrl, { waitUntil: 'load' });
-
-				// Wait a moment for the page to fully load
-				await page.waitForTimeout(1000);
-
-				await page.getByRole('link', { name: 'Usuń rezerwację' }).click();
-				await page.getByText('Usuń', { exact: true }).click();
-
-				await page.waitForTimeout(3000);
-
-
-				results.push({
-					success: true,
-					message: `Successfully obliterated ${oponeoReservationId}`,
-					timestamp: new Date().toISOString(),
-				});
-			} catch (reservationError) {
-				logger.error(
-					`Failed to process reservation ${oponeoReservationId}:`,
-					reservationError.message
-				);
-
-				errors.push({
-					oponeoReservationId,
-					error: reservationError.message,
-					timestamp: new Date().toISOString(),
-				});
+		try {
+			if (!oponeoReservationId) {
+				throw new Error('MISSING_ID - oponeoReservationId is required');
 			}
+
+			// Navigate to the reservation edit page
+			const editUrl = `https://autoserwis.oponeo.pl/edycja-rezerwacji/${oponeoReservationId}`;
+			logger.info(`Navigating to: ${editUrl}`);
+
+			await page.goto(editUrl, { waitUntil: 'load' });
+
+			// Wait a moment for the page to fully load
+			await page.waitForTimeout(1000);
+
+			await page.getByRole('link', { name: 'Usuń rezerwację' }).click();
+			await page.getByText('Usuń', { exact: true }).click();
+
+			await page.waitForTimeout(3000);
+
+			results.push({
+				success: true,
+				message: `Successfully obliterated ${oponeoReservationId}`,
+				timestamp: new Date().toISOString(),
+			});
+		} catch (reservationError) {
+			logger.error(
+				`Failed to process reservation ${oponeoReservationId}:`,
+				reservationError.message
+			);
+
+			errors.push({
+				oponeoReservationId,
+				error: reservationError.message,
+				timestamp: new Date().toISOString(),
+			});
+		}
 
 		await browser.close();
 
