@@ -3,3 +3,12 @@
 error.log
 combined.log
 n8n-credentials.json
+
+# Test coverage
+/coverage
+*.log
+
+# Jest cache
+/.jest-cache
+
+/tests/fixtures/reservation-*
