@@ -223,8 +223,9 @@ const get_reservations_from_now_url = () => {
 
 // Helper function to convert .NET ticks to date
 const convertTicksToDate = (ticks) => {
-	const milliseconds =
-		(ticks - EPOCH_TICKS_AT_UNIX_EPOCH) / TICKS_PER_MILLISECOND;
+	const milliseconds = Number(
+		(BigInt(ticks) - BigInt(EPOCH_TICKS_AT_UNIX_EPOCH)) / BigInt(TICKS_PER_MILLISECOND)
+	);
 	return new Date(milliseconds);
 };
 
