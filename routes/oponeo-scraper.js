@@ -10,6 +10,7 @@ const {
 	browserPool,
 	createBrowserContext,
 	randomDelay,
+	getTimeSlotIndex,
 } = require('../utils');
 
 const router = express.Router();
@@ -211,10 +212,12 @@ router.post('/mutator', async (req, res) => {
 				await randomDelay(200, 500);
 				await page.locator('input[name="DateChoose\\.TimeTo"]').click();
 
+				// there is a different html structure for the last available hour for current day
+				const timeSlotIndex = getTimeSlotIndex(endDateHour, endDate);
 				const timeSlotLocator = page
 					.locator('div.hours > div')
 					.filter({ hasText: new RegExp(`^${endDateHour}$`) })
-					.nth(endDateHour === '17:00' ? 0 : 1);
+					.nth(timeSlotIndex);
 
 				const isDisabled = (
 					await timeSlotLocator.getAttribute('class', { timeout: 10000 })

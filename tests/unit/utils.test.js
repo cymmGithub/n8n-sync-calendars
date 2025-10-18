@@ -4,6 +4,7 @@ const {
 	isoToTicks,
 	getCurrentDate,
 	get_reservations_from_now_url,
+	getTimeSlotIndex,
 	TICKS_PER_MILLISECOND,
 	EPOCH_TICKS_AT_UNIX_EPOCH,
 } = require('../../utils');
@@ -206,6 +207,206 @@ describe('Date and Time Utilities', () => {
 				// Account for timezone offset since isoToTicks treats as local time
 				const timezoneOffsetMs = originalDate.getTimezoneOffset() * 60 * 1000;
 				expect(Math.abs(dateBack.getTime() - originalDate.getTime() - timezoneOffsetMs)).toBeLessThan(1000);
+			});
+		});
+	});
+
+	describe('getTimeSlotIndex', () => {
+		describe('17:00 time slot', () => {
+			it('should return 0 for 17:00 on Monday', () => {
+				// Monday, October 20, 2025
+				const date = new Date('2025-10-20T17:00:00');
+				const result = getTimeSlotIndex('17:00', date);
+				expect(result).toBe(0);
+			});
+
+			it('should return 0 for 17:00 on Tuesday', () => {
+				// Tuesday, October 21, 2025
+				const date = new Date('2025-10-21T17:00:00');
+				const result = getTimeSlotIndex('17:00', date);
+				expect(result).toBe(0);
+			});
+
+			it('should return 0 for 17:00 on Wednesday', () => {
+				// Wednesday, October 22, 2025
+				const date = new Date('2025-10-22T17:00:00');
+				const result = getTimeSlotIndex('17:00', date);
+				expect(result).toBe(0);
+			});
+
+			it('should return 0 for 17:00 on Thursday', () => {
+				// Thursday, October 23, 2025
+				const date = new Date('2025-10-23T17:00:00');
+				const result = getTimeSlotIndex('17:00', date);
+				expect(result).toBe(0);
+			});
+
+			it('should return 0 for 17:00 on Friday', () => {
+				// Friday, October 24, 2025
+				const date = new Date('2025-10-24T17:00:00');
+				const result = getTimeSlotIndex('17:00', date);
+				expect(result).toBe(0);
+			});
+
+			it('should return 0 for 17:00 on Saturday', () => {
+				// Saturday, October 18, 2025
+				const date = new Date('2025-10-18T17:00:00');
+				const result = getTimeSlotIndex('17:00', date);
+				expect(result).toBe(0);
+			});
+
+			it('should return 0 for 17:00 on Sunday', () => {
+				// Sunday, October 19, 2025
+				const date = new Date('2025-10-19T17:00:00');
+				const result = getTimeSlotIndex('17:00', date);
+				expect(result).toBe(0);
+			});
+		});
+
+		describe('14:00 time slot', () => {
+			it('should return 0 for 14:00 on Saturday', () => {
+				// Saturday, October 18, 2025 (getDay() returns 6)
+				const date = new Date('2025-10-18T14:00:00');
+				expect(date.getDay()).toBe(6); // Verify it's Saturday
+				const result = getTimeSlotIndex('14:00', date);
+				expect(result).toBe(0);
+			});
+
+			it('should return 1 for 14:00 on Monday', () => {
+				// Monday, October 20, 2025
+				const date = new Date('2025-10-20T14:00:00');
+				expect(date.getDay()).toBe(1); // Verify it's Monday
+				const result = getTimeSlotIndex('14:00', date);
+				expect(result).toBe(1);
+			});
+
+			it('should return 1 for 14:00 on Tuesday', () => {
+				// Tuesday, October 21, 2025
+				const date = new Date('2025-10-21T14:00:00');
+				const result = getTimeSlotIndex('14:00', date);
+				expect(result).toBe(1);
+			});
+
+			it('should return 1 for 14:00 on Wednesday', () => {
+				// Wednesday, October 22, 2025
+				const date = new Date('2025-10-22T14:00:00');
+				const result = getTimeSlotIndex('14:00', date);
+				expect(result).toBe(1);
+			});
+
+			it('should return 1 for 14:00 on Thursday', () => {
+				// Thursday, October 23, 2025
+				const date = new Date('2025-10-23T14:00:00');
+				const result = getTimeSlotIndex('14:00', date);
+				expect(result).toBe(1);
+			});
+
+			it('should return 1 for 14:00 on Friday', () => {
+				// Friday, October 24, 2025
+				const date = new Date('2025-10-24T14:00:00');
+				const result = getTimeSlotIndex('14:00', date);
+				expect(result).toBe(1);
+			});
+
+			it('should return 1 for 14:00 on Sunday', () => {
+				// Sunday, October 19, 2025
+				const date = new Date('2025-10-19T14:00:00');
+				expect(date.getDay()).toBe(0); // Verify it's Sunday
+				const result = getTimeSlotIndex('14:00', date);
+				expect(result).toBe(1);
+			});
+		});
+
+		describe('Other time slots', () => {
+			it('should return 1 for 10:00 on any day', () => {
+				const date = new Date('2025-10-20T10:00:00');
+				const result = getTimeSlotIndex('10:00', date);
+				expect(result).toBe(1);
+			});
+
+			it('should return 1 for 12:30 on any day', () => {
+				const date = new Date('2025-10-20T12:30:00');
+				const result = getTimeSlotIndex('12:30', date);
+				expect(result).toBe(1);
+			});
+
+			it('should return 1 for 15:45 on any day', () => {
+				const date = new Date('2025-10-20T15:45:00');
+				const result = getTimeSlotIndex('15:45', date);
+				expect(result).toBe(1);
+			});
+
+			it('should return 1 for 18:00 on any day', () => {
+				const date = new Date('2025-10-20T18:00:00');
+				const result = getTimeSlotIndex('18:00', date);
+				expect(result).toBe(1);
+			});
+
+			it('should return 1 for 09:00 on Saturday', () => {
+				const date = new Date('2025-10-18T09:00:00');
+				expect(date.getDay()).toBe(6); // Verify it's Saturday
+				const result = getTimeSlotIndex('09:00', date);
+				expect(result).toBe(1);
+			});
+		});
+
+		describe('Error handling', () => {
+			it('should throw error when timeString is missing', () => {
+				const date = new Date('2025-10-20T14:00:00');
+				expect(() => getTimeSlotIndex(null, date)).toThrow('Both timeString and date are required');
+			});
+
+			it('should throw error when timeString is undefined', () => {
+				const date = new Date('2025-10-20T14:00:00');
+				expect(() => getTimeSlotIndex(undefined, date)).toThrow('Both timeString and date are required');
+			});
+
+			it('should throw error when timeString is empty string', () => {
+				const date = new Date('2025-10-20T14:00:00');
+				expect(() => getTimeSlotIndex('', date)).toThrow('Both timeString and date are required');
+			});
+
+			it('should throw error when date is missing', () => {
+				expect(() => getTimeSlotIndex('14:00', null)).toThrow('Both timeString and date are required');
+			});
+
+			it('should throw error when date is undefined', () => {
+				expect(() => getTimeSlotIndex('14:00', undefined)).toThrow('Both timeString and date are required');
+			});
+
+			it('should throw error when both parameters are missing', () => {
+				expect(() => getTimeSlotIndex(null, null)).toThrow('Both timeString and date are required');
+			});
+		});
+
+		describe('Edge cases', () => {
+			it('should handle date at midnight on Saturday', () => {
+				const date = new Date('2025-10-18T00:00:00');
+				expect(date.getDay()).toBe(6); // Verify it's Saturday
+				const result = getTimeSlotIndex('14:00', date);
+				expect(result).toBe(0);
+			});
+
+			it('should handle date at end of day on Saturday', () => {
+				const date = new Date('2025-10-18T23:59:59');
+				expect(date.getDay()).toBe(6); // Verify it's Saturday
+				const result = getTimeSlotIndex('14:00', date);
+				expect(result).toBe(0);
+			});
+
+			it('should treat 14:00 on different Saturdays consistently', () => {
+				// Test multiple Saturdays
+				const saturdays = [
+					new Date('2025-10-18T14:00:00'), // October
+					new Date('2025-11-15T14:00:00'), // November
+					new Date('2025-12-20T14:00:00'), // December
+				];
+
+				saturdays.forEach(date => {
+					expect(date.getDay()).toBe(6); // Verify it's Saturday
+					const result = getTimeSlotIndex('14:00', date);
+					expect(result).toBe(0);
+				});
 			});
 		});
 	});

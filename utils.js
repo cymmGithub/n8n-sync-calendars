@@ -380,6 +380,25 @@ const randomDelay = (min = 100, max = 300) => {
 	);
 };
 
+const getTimeSlotIndex = (timeString, date) => {
+	if (!timeString || !date) {
+		throw new Error('Both timeString and date are required');
+	}
+
+	// Check for 17:00 - always first slot
+	if (timeString === '17:00') {
+		return 0;
+	}
+
+	// Check for 14:00 on Saturday (6 = Saturday in JS Date.getDay())
+	if (timeString === '14:00' && date.getDay() === 6) {
+		return 0;
+	}
+
+	// All other cases - second slot
+	return 1;
+};
+
 module.exports = {
 	// Constants
 	TICKS_PER_MILLISECOND,
@@ -398,6 +417,7 @@ module.exports = {
 	convertTicksToDate,
 	formatTime,
 	isoToTicks,
+	getTimeSlotIndex,
 
 	// Browser management
 	browserPool,
