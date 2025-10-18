@@ -1,6 +1,4 @@
 const express = require('express');
-const { chromium } = require('playwright-extra');
-const stealth = require('puppeteer-extra-plugin-stealth')();
 const {
 	logger,
 	authenticate_oponeo,
@@ -9,17 +7,10 @@ const {
 	get_reservations_from_now_url,
 	convertTicksToDate,
 	formatTime,
+	browserPool,
+	createBrowserContext,
+	randomDelay,
 } = require('../utils');
-
-// Configure stealth plugin to avoid bot detection
-chromium.use(stealth);
-
-// Helper function to add random delays for more human-like behavior
-const randomDelay = (min = 100, max = 300) => {
-	return new Promise((resolve) =>
-		setTimeout(resolve, Math.random() * (max - min) + min)
-	);
-};
 
 const router = express.Router();
 
@@ -34,46 +25,12 @@ router.post('/scraper', async (req, res) => {
 	}
 
 	let browser;
+	let context;
 	try {
-		const browser_options = {
-			headless: !debug_mode,
-			args: [
-				'--no-first-run',
-				'--no-default-browser-check',
-				'--disable-blink-features=AutomationControlled',
-				'--disable-features=VizDisplayCompositor',
-				'--disable-backgrounding-occluded-windows',
-				'--disable-renderer-backgrounding',
-				'--disable-background-timer-throttling',
-				'--disable-ipc-flooding-protection',
-			],
-		};
-
-		// Add proxy if configured
-		if (process.env.PROXY_SERVER) {
-			browser_options.proxy = {
-				server: process.env.PROXY_SERVER,
-			};
-			if (process.env.PROXY_USERNAME) {
-				browser_options.proxy.username = process.env.PROXY_USERNAME;
-				browser_options.proxy.password = process.env.PROXY_PASSWORD;
-			}
-		}
-
-		browser = await chromium.launch(browser_options);
-		const context = await browser.newContext({
-			viewport: { width: 1920, height: 1080 },
-			userAgent:
-				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-			locale: 'pl-PL',
-			timezoneId: 'Europe/Warsaw',
-		});
-		const page = await context.newPage();
-
-		if (debug_mode) {
-			page.on('console', (msg) => console.log('Browser console:', msg.text()));
-			page.on('pageerror', (err) => console.error('Browser page error:', err));
-		}
+		// Use browser pool
+		browser = await browserPool.getBrowser(debug_mode);
+		const { context: ctx, page } = await createBrowserContext(browser, debug_mode);
+		context = ctx;
 
 		await authenticate_oponeo(page, email, password);
 
@@ -124,48 +81,60 @@ router.post('/scraper', async (req, res) => {
 			}
 		}
 
-		logger.info(
-			`Reservation processing complete: Total processed: ${processed}, Included: ${detailed_reservations.length}, Skipped: ${skipped}`
-		);
+	logger.info(
+		`Reservation processing complete: Total processed: ${processed}, Included: ${detailed_reservations.length}, Skipped: ${skipped}`
+	);
 
-		await browser.close();
-
-		const final_stats = {
-			pagination: reservations_data.stats,
-			processing: {
-				total_processed: processed,
-				included: detailed_reservations.length,
-				skipped: skipped,
-			},
-		};
-
-		logger.info('Successfully scraped data after authentication', {
-			url: url || 'https://autoserwis.oponeo.pl/',
-			data_keys: Object.keys(detailed_reservations),
-			stats: final_stats,
-		});
-
-		res.json({
-			success: true,
-			data: detailed_reservations,
-			stats: final_stats,
-		});
-	} catch (error) {
-		logger.error('Error during scraping process', {
-			error: error.message,
-			stack: error.stack,
-		});
-
-		if (browser) {
-			await browser.close();
-		}
-
-		res.status(500).json({
-			success: false,
-			error: error.message,
-			details: 'An error occurred during the scraping process',
-		});
+	// Close context and release browser back to pool
+	if (context) {
+		await context.close();
 	}
+	await browserPool.releaseBrowser();
+
+	const final_stats = {
+		pagination: reservations_data.stats,
+		processing: {
+			total_processed: processed,
+			included: detailed_reservations.length,
+			skipped: skipped,
+		},
+	};
+
+	logger.info('Successfully scraped data after authentication', {
+		url: url || 'https://autoserwis.oponeo.pl/',
+		data_keys: Object.keys(detailed_reservations),
+		stats: final_stats,
+	});
+
+	res.json({
+		success: true,
+		data: detailed_reservations,
+		stats: final_stats,
+	});
+} catch (error) {
+	logger.error('Error during scraping process', {
+		error: error.message,
+		stack: error.stack,
+	});
+
+	// Cleanup on error
+	if (context) {
+		try {
+			await context.close();
+		} catch (e) {
+			logger.error('Error closing context:', e.message);
+		}
+	}
+	if (browser) {
+		await browserPool.releaseBrowser();
+	}
+
+	res.status(500).json({
+		success: false,
+		error: error.message,
+		details: 'An error occurred during the scraping process',
+	});
+}
 });
 
 router.post('/mutator', async (req, res) => {
@@ -193,49 +162,15 @@ router.post('/mutator', async (req, res) => {
 	}
 
 	let browser;
+	let context;
 	const results = [];
 	const errors = [];
 
 	try {
-		const browser_options = {
-			headless: !debug_mode, // Show browser when debugging
-			args: [
-				'--no-first-run',
-				'--no-default-browser-check',
-				'--disable-blink-features=AutomationControlled',
-				'--disable-features=VizDisplayCompositor',
-				'--disable-backgrounding-occluded-windows',
-				'--disable-renderer-backgrounding',
-				'--disable-background-timer-throttling',
-				'--disable-ipc-flooding-protection',
-			],
-		};
-
-		// Add proxy if configured
-		if (process.env.PROXY_SERVER) {
-			browser_options.proxy = {
-				server: process.env.PROXY_SERVER,
-			};
-			if (process.env.PROXY_USERNAME) {
-				browser_options.proxy.username = process.env.PROXY_USERNAME;
-				browser_options.proxy.password = process.env.PROXY_PASSWORD;
-			}
-		}
-
-		browser = await chromium.launch(browser_options);
-		const context = await browser.newContext({
-			viewport: { width: 1920, height: 1080 },
-			userAgent:
-				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-			locale: 'pl-PL',
-			timezoneId: 'Europe/Warsaw',
-		});
-		const page = await context.newPage();
-
-		if (debug_mode) {
-			page.on('console', (msg) => console.log('Browser console:', msg.text()));
-			page.on('pageerror', (err) => console.error('Browser page error:', err));
-		}
+		// Use browser pool
+		browser = await browserPool.getBrowser(debug_mode);
+		const { context: ctx, page } = await createBrowserContext(browser, debug_mode);
+		context = ctx;
 
 		// Authenticate once
 		await authenticate_oponeo(page, email, password);
@@ -374,50 +309,62 @@ router.post('/mutator', async (req, res) => {
 
 				// Continue with next reservation
 				continue;
-			}
 		}
-
-		await browser.close();
-
-		const summary = {
-			total: reservations.length,
-			successful: results.length,
-			failed: errors.length,
-			success_rate:
-				((results.length / reservations.length) * 100).toFixed(2) + '%',
-		};
-
-		logger.info('Mutation process complete:', summary);
-
-		res.json({
-			success: true,
-			summary: summary,
-			results: results,
-			errors: errors,
-			metadata: {
-				timestamp: new Date().toISOString(),
-				processed: reservations.length,
-				authentication: 'successful',
-			},
-		});
-	} catch (error) {
-		logger.error('Error during mutation process', {
-			error: error.message,
-			stack: error.stack,
-		});
-
-		if (browser) {
-			await browser.close();
-		}
-
-		res.status(500).json({
-			success: false,
-			error: error.message,
-			details: 'An error occurred during the mutation process',
-			partial_results: results,
-			errors: errors,
-		});
 	}
+
+	// Close context and release browser back to pool
+	if (context) {
+		await context.close();
+	}
+	await browserPool.releaseBrowser();
+
+	const summary = {
+		total: reservations.length,
+		successful: results.length,
+		failed: errors.length,
+		success_rate:
+			((results.length / reservations.length) * 100).toFixed(2) + '%',
+	};
+
+	logger.info('Mutation process complete:', summary);
+
+	res.json({
+		success: true,
+		summary: summary,
+		results: results,
+		errors: errors,
+		metadata: {
+			timestamp: new Date().toISOString(),
+			processed: reservations.length,
+			authentication: 'successful',
+		},
+	});
+} catch (error) {
+	logger.error('Error during mutation process', {
+		error: error.message,
+		stack: error.stack,
+	});
+
+	// Cleanup on error
+	if (context) {
+		try {
+			await context.close();
+		} catch (e) {
+			logger.error('Error closing context:', e.message);
+		}
+	}
+	if (browser) {
+		await browserPool.releaseBrowser();
+	}
+
+	res.status(500).json({
+		success: false,
+		error: error.message,
+		details: 'An error occurred during the mutation process',
+		partial_results: results,
+		errors: errors,
+	});
+}
 });
 
 router.post('/obliterator', async (req, res) => {
@@ -430,49 +377,15 @@ router.post('/obliterator', async (req, res) => {
 	}
 
 	let browser;
+	let context;
 	const results = [];
 	const errors = [];
 
 	try {
-		const browser_options = {
-			headless: !debug_mode, // Show browser when debugging
-			args: [
-				'--no-first-run',
-				'--no-default-browser-check',
-				'--disable-blink-features=AutomationControlled',
-				'--disable-features=VizDisplayCompositor',
-				'--disable-backgrounding-occluded-windows',
-				'--disable-renderer-backgrounding',
-				'--disable-background-timer-throttling',
-				'--disable-ipc-flooding-protection',
-			],
-		};
-
-		// Add proxy if configured
-		if (process.env.PROXY_SERVER) {
-			browser_options.proxy = {
-				server: process.env.PROXY_SERVER,
-			};
-			if (process.env.PROXY_USERNAME) {
-				browser_options.proxy.username = process.env.PROXY_USERNAME;
-				browser_options.proxy.password = process.env.PROXY_PASSWORD;
-			}
-		}
-
-		browser = await chromium.launch(browser_options);
-		const context = await browser.newContext({
-			viewport: { width: 1920, height: 1080 },
-			userAgent:
-				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-			locale: 'pl-PL',
-			timezoneId: 'Europe/Warsaw',
-		});
-		const page = await context.newPage();
-
-		if (debug_mode) {
-			page.on('console', (msg) => console.log('Browser console:', msg.text()));
-			page.on('pageerror', (err) => console.error('Browser page error:', err));
-		}
+		// Use browser pool
+		browser = await browserPool.getBrowser(debug_mode);
+		const { context: ctx, page } = await createBrowserContext(browser, debug_mode);
+		context = ctx;
 
 		// Authenticate once
 		await authenticate_oponeo(page, email, password);
@@ -512,34 +425,46 @@ router.post('/obliterator', async (req, res) => {
 				oponeoReservationId,
 				error: reservationError.message,
 				timestamp: new Date().toISOString(),
-			});
-		}
-
-		await browser.close();
-
-		res.json({
-			success: true,
-			results: results,
-			errors: errors,
-		});
-	} catch (error) {
-		logger.error('Error during obliteration process', {
-			error: error.message,
-			stack: error.stack,
-		});
-
-		if (browser) {
-			await browser.close();
-		}
-
-		res.status(500).json({
-			success: false,
-			error: error.message,
-			details: 'An error occurred during the obliteration process',
-			partial_results: results,
-			errors,
 		});
 	}
+
+	// Close context and release browser back to pool
+	if (context) {
+		await context.close();
+	}
+	await browserPool.releaseBrowser();
+
+	res.json({
+		success: true,
+		results: results,
+		errors: errors,
+	});
+} catch (error) {
+	logger.error('Error during obliteration process', {
+		error: error.message,
+		stack: error.stack,
+	});
+
+	// Cleanup on error
+	if (context) {
+		try {
+			await context.close();
+		} catch (e) {
+			logger.error('Error closing context:', e.message);
+		}
+	}
+	if (browser) {
+		await browserPool.releaseBrowser();
+	}
+
+	res.status(500).json({
+		success: false,
+		error: error.message,
+		details: 'An error occurred during the obliteration process',
+		partial_results: results,
+		errors,
+	});
+}
 });
 
 module.exports = router;

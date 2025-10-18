@@ -1,4 +1,9 @@
 const winston = require('winston');
+const { chromium } = require('playwright-extra');
+const stealth = require('puppeteer-extra-plugin-stealth')();
+
+// Configure stealth plugin to avoid bot detection
+chromium.use(stealth);
 
 // Constants
 const TICKS_PER_MILLISECOND = 10_000;
@@ -249,6 +254,132 @@ function isoToTicks(isoString) {
 	return ms * BigInt(TICKS_PER_MILLISECOND) + BigInt(EPOCH_TICKS_AT_UNIX_EPOCH);
 }
 
+// Browser pooling system
+class BrowserPool {
+	constructor() {
+		this.browser = null;
+		this.lastUsed = null;
+		this.isInUse = false;
+		this.IDLE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+	}
+
+	async getBrowser(debugMode = false) {
+		// If browser exists and is not too old, reuse it
+		if (this.browser && !this.isStale()) {
+			logger.info('Reusing existing browser instance');
+			this.isInUse = true;
+			this.lastUsed = Date.now();
+			return this.browser;
+		}
+
+		// Close stale browser if exists
+		if (this.browser) {
+			logger.info('Closing stale browser instance');
+			await this.closeBrowser();
+		}
+
+		// Create new browser
+		logger.info('Creating new browser instance');
+		this.browser = await createBrowserInstance(debugMode);
+		this.isInUse = true;
+		this.lastUsed = Date.now();
+		return this.browser;
+	}
+
+	async releaseBrowser() {
+		this.isInUse = false;
+		this.lastUsed = Date.now();
+
+		// Start cleanup timer
+		setTimeout(async () => {
+			if (!this.isInUse && this.isStale()) {
+				logger.info('Closing idle browser instance');
+				await this.closeBrowser();
+			}
+		}, this.IDLE_TIMEOUT);
+	}
+
+	isStale() {
+		if (!this.lastUsed) return false;
+		return Date.now() - this.lastUsed > this.IDLE_TIMEOUT;
+	}
+
+	async closeBrowser() {
+		if (this.browser) {
+			try {
+				await this.browser.close();
+			} catch (error) {
+				logger.error('Error closing browser:', error.message);
+			}
+			this.browser = null;
+			this.isInUse = false;
+			this.lastUsed = null;
+		}
+	}
+}
+
+// Single shared browser pool instance
+const browserPool = new BrowserPool();
+
+// Shared browser configuration function
+async function createBrowserInstance(debugMode = false) {
+	const browserOptions = {
+		headless: !debugMode,
+		args: [
+			'--no-first-run',
+			'--no-default-browser-check',
+			'--disable-blink-features=AutomationControlled',
+			'--disable-features=VizDisplayCompositor',
+			'--disable-backgrounding-occluded-windows',
+			'--disable-renderer-backgrounding',
+			'--disable-background-timer-throttling',
+			'--disable-ipc-flooding-protection',
+		],
+	};
+
+	// Add proxy if configured
+	if (process.env.PROXY_SERVER) {
+		browserOptions.proxy = {
+			server: process.env.PROXY_SERVER,
+		};
+		if (process.env.PROXY_USERNAME) {
+			browserOptions.proxy.username = process.env.PROXY_USERNAME;
+			browserOptions.proxy.password = process.env.PROXY_PASSWORD;
+		}
+	}
+
+	const browser = await chromium.launch(browserOptions);
+	logger.info('Browser instance created successfully');
+	return browser;
+}
+
+// Helper function to create browser context
+async function createBrowserContext(browser, debugMode = false) {
+	const context = await browser.newContext({
+		viewport: { width: 1920, height: 1080 },
+		userAgent:
+			'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+		locale: 'pl-PL',
+		timezoneId: 'Europe/Warsaw',
+	});
+
+	const page = await context.newPage();
+
+	if (debugMode) {
+		page.on('console', (msg) => console.log('Browser console:', msg.text()));
+		page.on('pageerror', (err) => console.error('Browser page error:', err));
+	}
+
+	return { context, page };
+}
+
+// Helper function for random delays (human-like behavior)
+const randomDelay = (min = 100, max = 300) => {
+	return new Promise((resolve) =>
+		setTimeout(resolve, Math.random() * (max - min) + min)
+	);
+};
+
 module.exports = {
 	// Constants
 	TICKS_PER_MILLISECOND,
@@ -267,4 +398,10 @@ module.exports = {
 	convertTicksToDate,
 	formatTime,
 	isoToTicks,
+
+	// Browser management
+	browserPool,
+	createBrowserInstance,
+	createBrowserContext,
+	randomDelay,
 };
