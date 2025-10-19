@@ -5,6 +5,7 @@ const {
 	getCurrentDate,
 	get_reservations_from_now_url,
 	getTimeSlotIndex,
+	getRandomProxyConfig,
 	TICKS_PER_MILLISECOND,
 	EPOCH_TICKS_AT_UNIX_EPOCH,
 } = require('../../utils');
@@ -407,6 +408,122 @@ describe('Date and Time Utilities', () => {
 					const result = getTimeSlotIndex('14:00', date);
 					expect(result).toBe(0);
 				});
+			});
+		});
+	});
+
+	describe('getRandomProxyConfig', () => {
+		describe('Return value structure', () => {
+			it('should return an object with port and account properties', () => {
+				const result = getRandomProxyConfig();
+
+				expect(result).toHaveProperty('port');
+				expect(result).toHaveProperty('account');
+			});
+
+			it('should return numeric values for both properties', () => {
+				const result = getRandomProxyConfig();
+
+				expect(typeof result.port).toBe('number');
+				expect(typeof result.account).toBe('number');
+			});
+		});
+
+		describe('Port validation', () => {
+			it('should return a port from the available ports list', () => {
+				const validPorts = [8001, 8002, 8003, 8004, 8005];
+				const result = getRandomProxyConfig();
+
+				expect(validPorts).toContain(result.port);
+			});
+
+			it('should always return a valid port over multiple calls', () => {
+				const validPorts = [8001, 8002, 8003, 8004, 8005];
+
+				for (let i = 0; i < 20; i++) {
+					const result = getRandomProxyConfig();
+					expect(validPorts).toContain(result.port);
+				}
+			});
+		});
+
+		describe('Account validation', () => {
+			it('should return account 1 or 2', () => {
+				const result = getRandomProxyConfig();
+
+				expect([1, 2]).toContain(result.account);
+			});
+
+			it('should always return a valid account over multiple calls', () => {
+				for (let i = 0; i < 20; i++) {
+					const result = getRandomProxyConfig();
+					expect([1, 2]).toContain(result.account);
+				}
+			});
+		});
+
+		describe('Randomness distribution', () => {
+			it('should distribute ports across multiple calls', () => {
+				const portCounts = {};
+				const iterations = 100;
+
+				for (let i = 0; i < iterations; i++) {
+					const result = getRandomProxyConfig();
+					portCounts[result.port] = (portCounts[result.port] || 0) + 1;
+				}
+
+				// With 100 iterations and 5 ports, we expect at least 2 different ports
+				const uniquePorts = Object.keys(portCounts);
+				expect(uniquePorts.length).toBeGreaterThanOrEqual(2);
+			});
+
+			it('should distribute accounts across multiple calls', () => {
+				const accountCounts = {};
+				const iterations = 100;
+
+				for (let i = 0; i < iterations; i++) {
+					const result = getRandomProxyConfig();
+					accountCounts[result.account] = (accountCounts[result.account] || 0) + 1;
+				}
+
+				// With 100 iterations and 2 accounts, both should appear
+				expect(accountCounts[1]).toBeGreaterThan(0);
+				expect(accountCounts[2]).toBeGreaterThan(0);
+			});
+
+			it('should produce different combinations over multiple calls', () => {
+				const combinations = new Set();
+				const iterations = 50;
+
+				for (let i = 0; i < iterations; i++) {
+					const result = getRandomProxyConfig();
+					combinations.add(`${result.port}-${result.account}`);
+				}
+
+				// With 5 ports and 2 accounts, we should get multiple combinations
+				expect(combinations.size).toBeGreaterThanOrEqual(3);
+			});
+		});
+
+		describe('Independence of port and account selection', () => {
+			it('should independently select port and account', () => {
+				const results = [];
+
+				for (let i = 0; i < 100; i++) {
+					results.push(getRandomProxyConfig());
+				}
+
+				// Check that each account appears with different ports
+				const account1Ports = new Set(
+					results.filter(r => r.account === 1).map(r => r.port)
+				);
+				const account2Ports = new Set(
+					results.filter(r => r.account === 2).map(r => r.port)
+				);
+
+				// Both accounts should appear with multiple different ports
+				expect(account1Ports.size).toBeGreaterThan(1);
+				expect(account2Ports.size).toBeGreaterThan(1);
 			});
 		});
 	});

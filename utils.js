@@ -321,6 +321,23 @@ class BrowserPool {
 // Single shared browser pool instance
 const browserPool = new BrowserPool();
 
+// Function to randomly select proxy configuration
+function getRandomProxyConfig() {
+	// Available ports for proxy
+	const availablePorts = [8001, 8002, 8003, 8004, 8005];
+
+	// Randomly select a port
+	const port = availablePorts[Math.floor(Math.random() * availablePorts.length)];
+
+	// Randomly select account (1 or 2)
+	const account = Math.floor(Math.random() * 2) + 1;
+
+	return {
+		port,
+		account,
+	};
+}
+
 // Shared browser configuration function
 async function createBrowserInstance(debugMode = false) {
 	const browserOptions = {
@@ -337,19 +354,25 @@ async function createBrowserInstance(debugMode = false) {
 		],
 	};
 
-	// Add proxy if configured
-	if (process.env.PROXY_SERVER) {
-		browserOptions.proxy = {
-			server: process.env.PROXY_SERVER,
-		};
-		if (process.env.PROXY_USERNAME) {
-			browserOptions.proxy.username = process.env.PROXY_USERNAME;
-			browserOptions.proxy.password = process.env.PROXY_PASSWORD;
-		}
+	const { port, account } = getRandomProxyConfig();
+
+	browserOptions.proxy = {
+		server: `${process.env.PROXY_SERVER}:${port}`,
+	};
+
+	if (account === 1) {
+		browserOptions.proxy.username = process.env.PROXY_USERNAME_1;
+		browserOptions.proxy.password = process.env.PROXY_PASSWORD_1;
+		logger.info(`Using proxy account 1 with port ${port}`);
+	} else {
+		browserOptions.proxy.username = process.env.PROXY_USERNAME_2;
+		browserOptions.proxy.password = process.env.PROXY_PASSWORD_2;
+		logger.info(`Using proxy account 2 with port ${port}`);
 	}
 
 	const browser = await chromium.launch(browserOptions);
 	logger.info('Browser instance created successfully');
+
 	return browser;
 }
 
@@ -424,4 +447,5 @@ module.exports = {
 	createBrowserInstance,
 	createBrowserContext,
 	randomDelay,
+	getRandomProxyConfig,
 };
