@@ -1,6 +1,8 @@
 const winston = require('winston');
 const { chromium } = require('playwright-extra');
 const stealth = require('puppeteer-extra-plugin-stealth')();
+const https = require('https');
+const http = require('http');
 
 // Configure stealth plugin to avoid bot detection
 chromium.use(stealth);
@@ -321,22 +323,235 @@ class BrowserPool {
 // Single shared browser pool instance
 const browserPool = new BrowserPool();
 
-// Function to randomly select proxy configuration
-function getRandomProxyConfig() {
-	// Available ports for proxy
-	const availablePorts = [8001, 8002, 8003, 8004, 8005];
+// Proxy Management System
+class ProxyManager {
+	constructor() {
+		this.proxyLists = {
+			account1: { proxies: [], credentials: null },
+			account2: { proxies: [], credentials: null },
+		};
+		this.ipUsageCount = new Map(); // Track usage per IP:port
+		this.currentThreshold = 10; // Start with 10 uses per IP
+		this.lastUsedAccount = null; // Track which account was used last
+		this.lastUsedIP = null; // Track last IP to avoid consecutive reuse
+		this.lastFetch = null;
+		this.CACHE_TTL = 60 * 60 * 1000; // 1 hour
+	}
 
-	// Randomly select a port
-	const port = availablePorts[Math.floor(Math.random() * availablePorts.length)];
+	// Fetch proxy list from Webshare URL
+	async fetchProxyList(url) {
+		return new Promise((resolve, reject) => {
+			const urlObj = new URL(url);
+			const protocol = urlObj.protocol === 'https:' ? https : http;
 
-	// Randomly select account (1 or 2)
-	const account = Math.floor(Math.random() * 2) + 1;
+			protocol
+				.get(url, (res) => {
+					let data = '';
 
-	return {
-		port,
-		account,
-	};
+					res.on('data', (chunk) => {
+						data += chunk;
+					});
+
+					res.on('end', () => {
+						resolve(data);
+					});
+				})
+				.on('error', (err) => {
+					reject(err);
+				});
+		});
+	}
+
+	// Parse proxy list in format: ip:port:username:password
+	parseProxyList(data) {
+		const lines = data.trim().split('\n');
+		const proxies = [];
+		let credentials = null;
+
+		for (const line of lines) {
+			const parts = line.trim().split(':');
+			if (parts.length === 4) {
+				const [ip, port, username, password] = parts;
+				proxies.push({ ip, port });
+				// Store credentials (same for all proxies in the list)
+				if (!credentials) {
+					credentials = { username, password };
+				}
+			}
+		}
+
+		return { proxies, credentials };
+	}
+
+	// Refresh proxy lists from both accounts
+	async refreshProxyLists() {
+		try {
+			logger.info('Fetching proxy lists from Webshare accounts...');
+
+			const [data1, data2] = await Promise.all([
+				this.fetchProxyList(process.env.WEBSHARE_ACCOUNT_1),
+				this.fetchProxyList(process.env.WEBSHARE_ACCOUNT_2),
+			]);
+
+			const parsed1 = this.parseProxyList(data1);
+			const parsed2 = this.parseProxyList(data2);
+
+			this.proxyLists.account1 = parsed1;
+			this.proxyLists.account2 = parsed2;
+
+			this.lastFetch = Date.now();
+
+			logger.info(
+				`Proxy lists refreshed: Account1=${parsed1.proxies.length} IPs, Account2=${parsed2.proxies.length} IPs`
+			);
+
+			return true;
+		} catch (error) {
+			logger.error(`Failed to refresh proxy lists: ${error.message}`);
+			// If we have cached data, continue using it
+			if (this.proxyLists.account1.proxies.length > 0) {
+				logger.warn('Using cached proxy lists');
+				return false;
+			}
+			throw error;
+		}
+	}
+
+	// Check if cache needs refresh
+	needsRefresh() {
+		if (!this.lastFetch) return true;
+		return Date.now() - this.lastFetch > this.CACHE_TTL;
+	}
+
+	// Get all unique IPs from both accounts
+	getAllUniqueIPs() {
+		const ipSet = new Set();
+		const ipList = [];
+
+		// Combine IPs from both accounts (they're the same according to user)
+		for (const proxy of this.proxyLists.account1.proxies) {
+			const ipPort = `${proxy.ip}:${proxy.port}`;
+			if (!ipSet.has(ipPort)) {
+				ipSet.add(ipPort);
+				ipList.push(proxy);
+			}
+		}
+
+		for (const proxy of this.proxyLists.account2.proxies) {
+			const ipPort = `${proxy.ip}:${proxy.port}`;
+			if (!ipSet.has(ipPort)) {
+				ipSet.add(ipPort);
+				ipList.push(proxy);
+			}
+		}
+
+		return ipList;
+	}
+
+	// Get random proxy with rotation logic
+	async getRandomProxy() {
+		// Refresh proxy lists if needed
+		if (this.needsRefresh()) {
+			await this.refreshProxyLists();
+		}
+
+		// Get all unique IPs
+		const allIPs = this.getAllUniqueIPs();
+
+		if (allIPs.length === 0) {
+			throw new Error('No proxies available');
+		}
+
+		// Determine next account (alternate between 1 and 2)
+		const nextAccount = this.lastUsedAccount === 1 ? 2 : 1;
+		this.lastUsedAccount = nextAccount;
+
+		// Get credentials for selected account
+		const accountKey = `account${nextAccount}`;
+		const credentials = this.proxyLists[accountKey].credentials;
+
+		if (!credentials) {
+			throw new Error(`No credentials available for ${accountKey}`);
+		}
+
+		// Find available IPs (usage < currentThreshold)
+		let availableIPs = allIPs.filter((proxy) => {
+			const ipPort = `${proxy.ip}:${proxy.port}`;
+			const usage = this.ipUsageCount.get(ipPort) || 0;
+			return usage < this.currentThreshold;
+		});
+
+		// If no IPs available, increment threshold
+		while (availableIPs.length === 0) {
+			this.currentThreshold += 10;
+			logger.warn(
+				`All IPs exhausted at previous threshold. Increasing to ${this.currentThreshold}`
+			);
+
+			availableIPs = allIPs.filter((proxy) => {
+				const ipPort = `${proxy.ip}:${proxy.port}`;
+				const usage = this.ipUsageCount.get(ipPort) || 0;
+				return usage < this.currentThreshold;
+			});
+		}
+
+		// Filter out last used IP to avoid consecutive reuse
+		if (this.lastUsedIP && availableIPs.length > 1) {
+			availableIPs = availableIPs.filter((proxy) => {
+				const ipPort = `${proxy.ip}:${proxy.port}`;
+				return ipPort !== this.lastUsedIP;
+			});
+		}
+
+		// Randomly select from available IPs
+		const selectedProxy =
+			availableIPs[Math.floor(Math.random() * availableIPs.length)];
+		const selectedIPPort = `${selectedProxy.ip}:${selectedProxy.port}`;
+
+		// Update usage count
+		const currentUsage = this.ipUsageCount.get(selectedIPPort) || 0;
+		this.ipUsageCount.set(selectedIPPort, currentUsage + 1);
+
+		// Update last used IP
+		this.lastUsedIP = selectedIPPort;
+
+		// Log selection details
+		logger.info(
+			`Proxy selected: ${selectedIPPort} (Account ${nextAccount}, Usage: ${currentUsage + 1}/${this.currentThreshold})`
+		);
+
+		// Log usage statistics
+		this.logUsageStats();
+
+		return {
+			server: selectedIPPort,
+			username: credentials.username,
+			password: credentials.password,
+			account: nextAccount,
+		};
+	}
+
+	// Log current usage statistics
+	logUsageStats() {
+		const stats = {
+			totalIPs: this.ipUsageCount.size,
+			threshold: this.currentThreshold,
+			usageDistribution: {},
+		};
+
+		// Count IPs by usage level
+		for (const [ip, count] of this.ipUsageCount.entries()) {
+			const bucket = Math.floor(count / 10) * 10;
+			const key = `${bucket}-${bucket + 9}`;
+			stats.usageDistribution[key] = (stats.usageDistribution[key] || 0) + 1;
+		}
+
+		logger.info(`Proxy usage stats: ${JSON.stringify(stats)}`);
+	}
 }
+
+// Single shared proxy manager instance
+const proxyManager = new ProxyManager();
 
 // Shared browser configuration function
 async function createBrowserInstance(debugMode = false) {
@@ -354,21 +569,14 @@ async function createBrowserInstance(debugMode = false) {
 		],
 	};
 
-	const { port, account } = getRandomProxyConfig();
+	// Get proxy from the new ProxyManager
+	const proxy = await proxyManager.getRandomProxy();
 
 	browserOptions.proxy = {
-		server: `${process.env.PROXY_SERVER}:${port}`,
+		server: proxy.server,
+		username: proxy.username,
+		password: proxy.password,
 	};
-
-	if (account === 1) {
-		browserOptions.proxy.username = process.env.PROXY_USERNAME_1;
-		browserOptions.proxy.password = process.env.PROXY_PASSWORD_1;
-		logger.info(`Using proxy account 1 with port ${port}`);
-	} else {
-		browserOptions.proxy.username = process.env.PROXY_USERNAME_2;
-		browserOptions.proxy.password = process.env.PROXY_PASSWORD_2;
-		logger.info(`Using proxy account 2 with port ${port}`);
-	}
 
 	const browser = await chromium.launch(browserOptions);
 	logger.info('Browser instance created successfully');
@@ -447,5 +655,5 @@ module.exports = {
 	createBrowserInstance,
 	createBrowserContext,
 	randomDelay,
-	getRandomProxyConfig,
+	proxyManager,
 };

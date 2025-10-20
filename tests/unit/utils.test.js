@@ -5,7 +5,7 @@ const {
 	getCurrentDate,
 	get_reservations_from_now_url,
 	getTimeSlotIndex,
-	getRandomProxyConfig,
+	proxyManager,
 	TICKS_PER_MILLISECOND,
 	EPOCH_TICKS_AT_UNIX_EPOCH,
 } = require('../../utils');
@@ -412,118 +412,115 @@ describe('Date and Time Utilities', () => {
 		});
 	});
 
-	describe('getRandomProxyConfig', () => {
-		describe('Return value structure', () => {
-			it('should return an object with port and account properties', () => {
-				const result = getRandomProxyConfig();
+	describe('ProxyManager', () => {
+		describe('Instance', () => {
+			it('should be defined', () => {
+				expect(proxyManager).toBeDefined();
+			});
 
-				expect(result).toHaveProperty('port');
+			it('should have required methods', () => {
+				expect(typeof proxyManager.getRandomProxy).toBe('function');
+				expect(typeof proxyManager.refreshProxyLists).toBe('function');
+				expect(typeof proxyManager.parseProxyList).toBe('function');
+			});
+
+			it('should have initial state', () => {
+				expect(proxyManager.ipUsageCount).toBeInstanceOf(Map);
+				expect(proxyManager.currentThreshold).toBe(10);
+				expect(proxyManager.lastUsedAccount).toBeNull();
+				expect(proxyManager.lastUsedIP).toBeNull();
+			});
+		});
+
+		describe('parseProxyList', () => {
+			it('should parse valid proxy list format', () => {
+				const data = `142.111.48.253:7030:user1:pass1
+31.59.20.176:6754:user1:pass1
+38.170.176.177:5572:user1:pass1`;
+
+				const result = proxyManager.parseProxyList(data);
+
+				expect(result.proxies).toHaveLength(3);
+				expect(result.proxies[0]).toEqual({ ip: '142.111.48.253', port: '7030' });
+				expect(result.proxies[1]).toEqual({ ip: '31.59.20.176', port: '6754' });
+				expect(result.credentials).toEqual({ username: 'user1', password: 'pass1' });
+			});
+
+			it('should handle empty lines', () => {
+				const data = `142.111.48.253:7030:user1:pass1
+
+31.59.20.176:6754:user1:pass1`;
+
+				const result = proxyManager.parseProxyList(data);
+
+				expect(result.proxies).toHaveLength(2);
+			});
+
+			it('should ignore malformed lines', () => {
+				const data = `142.111.48.253:7030:user1:pass1
+invalid-line
+31.59.20.176:6754:user1:pass1`;
+
+				const result = proxyManager.parseProxyList(data);
+
+				expect(result.proxies).toHaveLength(2);
+			});
+		});
+
+		describe('getRandomProxy (unit test with mock data)', () => {
+			beforeEach(() => {
+				// Reset proxy manager state for testing
+				proxyManager.proxyLists = {
+					account1: {
+						proxies: [
+							{ ip: '1.1.1.1', port: '8001' },
+							{ ip: '2.2.2.2', port: '8002' },
+						],
+						credentials: { username: 'user1', password: 'pass1' }
+					},
+					account2: {
+						proxies: [
+							{ ip: '3.3.3.3', port: '8003' },
+							{ ip: '4.4.4.4', port: '8004' },
+						],
+						credentials: { username: 'user2', password: 'pass2' }
+					}
+				};
+				proxyManager.lastFetch = Date.now();
+				proxyManager.ipUsageCount.clear();
+				proxyManager.currentThreshold = 10;
+				proxyManager.lastUsedAccount = null;
+				proxyManager.lastUsedIP = null;
+			});
+
+			it('should return proxy with required properties', async () => {
+				const result = await proxyManager.getRandomProxy();
+
+				expect(result).toHaveProperty('server');
+				expect(result).toHaveProperty('username');
+				expect(result).toHaveProperty('password');
 				expect(result).toHaveProperty('account');
 			});
 
-			it('should return numeric values for both properties', () => {
-				const result = getRandomProxyConfig();
+			it('should alternate between accounts', async () => {
+				const result1 = await proxyManager.getRandomProxy();
+				const result2 = await proxyManager.getRandomProxy();
 
-				expect(typeof result.port).toBe('number');
-				expect(typeof result.account).toBe('number');
-			});
-		});
-
-		describe('Port validation', () => {
-			it('should return a port from the available ports list', () => {
-				const validPorts = [8001, 8002, 8003, 8004, 8005];
-				const result = getRandomProxyConfig();
-
-				expect(validPorts).toContain(result.port);
+				expect(result1.account).toBe(1);
+				expect(result2.account).toBe(2);
 			});
 
-			it('should always return a valid port over multiple calls', () => {
-				const validPorts = [8001, 8002, 8003, 8004, 8005];
+			it('should track IP usage', async () => {
+				const result = await proxyManager.getRandomProxy();
 
-				for (let i = 0; i < 20; i++) {
-					const result = getRandomProxyConfig();
-					expect(validPorts).toContain(result.port);
-				}
-			});
-		});
-
-		describe('Account validation', () => {
-			it('should return account 1 or 2', () => {
-				const result = getRandomProxyConfig();
-
-				expect([1, 2]).toContain(result.account);
+				expect(proxyManager.ipUsageCount.get(result.server)).toBe(1);
 			});
 
-			it('should always return a valid account over multiple calls', () => {
-				for (let i = 0; i < 20; i++) {
-					const result = getRandomProxyConfig();
-					expect([1, 2]).toContain(result.account);
-				}
-			});
-		});
+			it('should avoid consecutive IP reuse', async () => {
+				const result1 = await proxyManager.getRandomProxy();
+				const result2 = await proxyManager.getRandomProxy();
 
-		describe('Randomness distribution', () => {
-			it('should distribute ports across multiple calls', () => {
-				const portCounts = {};
-				const iterations = 100;
-
-				for (let i = 0; i < iterations; i++) {
-					const result = getRandomProxyConfig();
-					portCounts[result.port] = (portCounts[result.port] || 0) + 1;
-				}
-
-				// With 100 iterations and 5 ports, we expect at least 2 different ports
-				const uniquePorts = Object.keys(portCounts);
-				expect(uniquePorts.length).toBeGreaterThanOrEqual(2);
-			});
-
-			it('should distribute accounts across multiple calls', () => {
-				const accountCounts = {};
-				const iterations = 100;
-
-				for (let i = 0; i < iterations; i++) {
-					const result = getRandomProxyConfig();
-					accountCounts[result.account] = (accountCounts[result.account] || 0) + 1;
-				}
-
-				// With 100 iterations and 2 accounts, both should appear
-				expect(accountCounts[1]).toBeGreaterThan(0);
-				expect(accountCounts[2]).toBeGreaterThan(0);
-			});
-
-			it('should produce different combinations over multiple calls', () => {
-				const combinations = new Set();
-				const iterations = 50;
-
-				for (let i = 0; i < iterations; i++) {
-					const result = getRandomProxyConfig();
-					combinations.add(`${result.port}-${result.account}`);
-				}
-
-				// With 5 ports and 2 accounts, we should get multiple combinations
-				expect(combinations.size).toBeGreaterThanOrEqual(3);
-			});
-		});
-
-		describe('Independence of port and account selection', () => {
-			it('should independently select port and account', () => {
-				const results = [];
-
-				for (let i = 0; i < 100; i++) {
-					results.push(getRandomProxyConfig());
-				}
-
-				// Check that each account appears with different ports
-				const account1Ports = new Set(
-					results.filter(r => r.account === 1).map(r => r.port)
-				);
-				const account2Ports = new Set(
-					results.filter(r => r.account === 2).map(r => r.port)
-				);
-
-				// Both accounts should appear with multiple different ports
-				expect(account1Ports.size).toBeGreaterThan(1);
-				expect(account2Ports.size).toBeGreaterThan(1);
+				expect(result1.server).not.toBe(result2.server);
 			});
 		});
 	});
