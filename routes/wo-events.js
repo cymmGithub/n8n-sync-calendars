@@ -1,5 +1,5 @@
 const express = require('express');
-const { logger, getCurrentDate } = require('../utils');
+const { logger, getCurrentDateMidnight } = require('../utils');
 
 const router = express.Router();
 
@@ -11,7 +11,7 @@ router.get('/events', async (req, res) => {
 		// Extract query parameters or use defaults
 		const page = req.query.page || 1;
 		const itemsPerPage = req.query.itemsPerPage || 100;
-		const date_from = getCurrentDate();
+		const updated_at_from = getCurrentDateMidnight();
 
 		// Validate WO_API_KEY exists
 		if (!process.env.WO_API_KEY) {
@@ -27,7 +27,7 @@ router.get('/events', async (req, res) => {
 		const woApiUrl = new URL('https://api.wymianaopon.pl/api/events/planned');
 		woApiUrl.searchParams.set('page', page);
 		woApiUrl.searchParams.set('itemsPerPage', itemsPerPage);
-		woApiUrl.searchParams.set('date_from', date_from);
+		woApiUrl.searchParams.set('updated_at_from', updated_at_from);
 
 		logger.info(`Fetching WO events from: ${woApiUrl.toString()}`);
 
@@ -64,7 +64,7 @@ router.get('/events', async (req, res) => {
 				parameters: {
 					page: parseInt(page),
 					itemsPerPage: parseInt(itemsPerPage),
-					date_from,
+					updated_at_from,
 				},
 			},
 		});

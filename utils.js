@@ -3,6 +3,7 @@ const { chromium } = require('playwright-extra');
 const stealth = require('puppeteer-extra-plugin-stealth')();
 const https = require('https');
 const http = require('http');
+const moment = require('moment');
 
 // Configure stealth plugin to avoid bot detection
 chromium.use(stealth);
@@ -30,6 +31,10 @@ const logger = winston.createLogger({
 // General utility functions
 const getCurrentDate = () => {
 	return new Date().toISOString().split('T')[0];
+};
+
+const getCurrentDateMidnight = () => {
+	return moment.utc().startOf('day').toISOString();
 };
 
 // Oponeo-specific functions
@@ -638,6 +643,7 @@ module.exports = {
 	// Shared utilities
 	logger,
 	getCurrentDate,
+	getCurrentDateMidnight,
 
 	// Oponeo functions
 	authenticate_oponeo,
