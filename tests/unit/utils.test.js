@@ -3,12 +3,14 @@ const {
 	formatTime,
 	isoToTicks,
 	getCurrentDate,
+	getCurrentDateMidnight,
 	get_reservations_from_now_url,
 	getTimeSlotIndex,
 	proxyManager,
 	TICKS_PER_MILLISECOND,
 	EPOCH_TICKS_AT_UNIX_EPOCH,
 } = require('../../utils');
+const moment = require('moment');
 
 describe('Date and Time Utilities', () => {
 	describe('getCurrentDate', () => {
@@ -23,6 +25,95 @@ describe('Date and Time Utilities', () => {
 			const expected = new Date().toISOString().split('T')[0];
 			expect(result).toBe(expected);
 		});
+	});
+
+	describe('getCurrentDateMidnight', () => {
+		it('should return ISO 8601 formatted string', () => {
+			const result = getCurrentDateMidnight();
+			// ISO 8601 format: YYYY-MM-DDTHH:mm:ss.sssZ
+			const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+			expect(result).toMatch(isoRegex);
+		});
+
+		it('should return time set to midnight (00:00:00.000)', () => {
+			const result = getCurrentDateMidnight();
+			const date = new Date(result);
+
+			expect(date.getUTCHours()).toBe(0);
+			expect(date.getUTCMinutes()).toBe(0);
+			expect(date.getUTCSeconds()).toBe(0);
+			expect(date.getUTCMilliseconds()).toBe(0);
+		});
+
+		it('should return today\'s date at midnight', () => {
+			const result = getCurrentDateMidnight();
+			const resultDate = new Date(result);
+			const today = new Date();
+
+			// Compare year, month, and date (ignoring time)
+			expect(resultDate.getUTCFullYear()).toBe(today.getUTCFullYear());
+			expect(resultDate.getUTCMonth()).toBe(today.getUTCMonth());
+			expect(resultDate.getUTCDate()).toBe(today.getUTCDate());
+		});
+
+	it('should match moment.utc().startOf(\'day\').toISOString() output', () => {
+		const result = getCurrentDateMidnight();
+		const expected = moment.utc().startOf('day').toISOString();
+
+		expect(result).toBe(expected);
+	});
+
+		it('should be parseable as a valid Date object', () => {
+			const result = getCurrentDateMidnight();
+			const date = new Date(result);
+
+			expect(date).toBeInstanceOf(Date);
+			expect(isNaN(date.getTime())).toBe(false);
+		});
+
+		it('should have timezone indicator Z', () => {
+			const result = getCurrentDateMidnight();
+			expect(result).toMatch(/Z$/);
+		});
+
+		it('should be different from current time (unless it is exactly midnight)', () => {
+			const result = getCurrentDateMidnight();
+			const now = new Date().toISOString();
+
+			const resultDate = new Date(result);
+			const nowDate = new Date(now);
+
+			// Unless we're exactly at midnight, these should be different
+			if (nowDate.getUTCHours() !== 0 || nowDate.getUTCMinutes() !== 0) {
+				expect(result).not.toBe(now);
+			}
+		});
+
+		it('should always be less than or equal to current time', () => {
+			const result = getCurrentDateMidnight();
+			const now = new Date();
+			const resultDate = new Date(result);
+
+			expect(resultDate.getTime()).toBeLessThanOrEqual(now.getTime());
+		});
+
+		it('should be consistent across multiple calls within the same day', () => {
+			const result1 = getCurrentDateMidnight();
+			const result2 = getCurrentDateMidnight();
+
+			// Both should return the same midnight timestamp if called on the same day
+			expect(result1).toBe(result2);
+		});
+
+	it('should return time exactly 24 hours before tomorrow\'s midnight', () => {
+		const today = getCurrentDateMidnight();
+		const tomorrow = moment.utc().add(1, 'day').startOf('day').toISOString();
+
+		const todayTime = new Date(today).getTime();
+		const tomorrowTime = new Date(tomorrow).getTime();
+
+		expect(tomorrowTime - todayTime).toBe(24 * 60 * 60 * 1000); // 24 hours in milliseconds
+	});
 	});
 
 	describe('convertTicksToDate', () => {

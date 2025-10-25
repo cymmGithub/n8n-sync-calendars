@@ -8,6 +8,7 @@ jest.mock('../../utils', () => ({
 		error: jest.fn(),
 	},
 	getCurrentDate: jest.fn(() => '2025-01-15'),
+	getCurrentDateMidnight: jest.fn(() => '2025-01-15T00:00:00.000Z'),
 }));
 
 const woEventsRouter = require('../../routes/wo-events');
@@ -102,7 +103,7 @@ describe('WO Events Routes', () => {
 	const fetchUrl = global.fetch.mock.calls[0][0];
 	expect(fetchUrl).toContain('page=1');
 	expect(fetchUrl).toContain('itemsPerPage=100');
-	expect(fetchUrl).toContain('date_from=');
+	expect(fetchUrl).toContain('updated_at_from=');
 });
 
 		it('should use custom pagination parameters', async () => {
