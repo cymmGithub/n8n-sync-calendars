@@ -341,6 +341,40 @@ class ProxyManager {
 		this.lastUsedIP = null; // Track last IP to avoid consecutive reuse
 		this.lastFetch = null;
 		this.CACHE_TTL = 60 * 60 * 1000; // 1 hour
+		this.blacklistedIPs = new Set(); // Track blacklisted IPs
+		this.loadBlacklist();
+	}
+
+	// Load blacklisted IPs from environment variable
+	loadBlacklist() {
+		const blacklistEnv = process.env.PROXY_BLACKLIST;
+		if (!blacklistEnv) {
+			logger.info('No proxy blacklist configured');
+			return;
+		}
+
+		// Parse comma-separated list of IPs or IP:port combinations
+		const blacklistedItems = blacklistEnv.split(',').map(item => item.trim()).filter(item => item);
+
+		this.blacklistedIPs = new Set(blacklistedItems);
+
+		logger.info(`Loaded ${this.blacklistedIPs.size} blacklisted IPs/ports: ${Array.from(this.blacklistedIPs).join(', ')}`);
+	}
+
+	// Check if an IP:port is blacklisted
+	isBlacklisted(ipPort) {
+		// Check exact IP:port match
+		if (this.blacklistedIPs.has(ipPort)) {
+			return true;
+		}
+
+		// Check IP-only match (in case blacklist contains just IPs without ports)
+		const ip = ipPort.split(':')[0];
+		if (this.blacklistedIPs.has(ip)) {
+			return true;
+		}
+
+		return false;
 	}
 
 	// Fetch proxy list from Webshare URL
@@ -428,7 +462,7 @@ class ProxyManager {
 		return Date.now() - this.lastFetch > this.CACHE_TTL;
 	}
 
-	// Get all unique IPs from both accounts
+	// Get all unique IPs from both accounts (excluding blacklisted ones)
 	getAllUniqueIPs() {
 		const ipSet = new Set();
 		const ipList = [];
@@ -436,7 +470,7 @@ class ProxyManager {
 		// Combine IPs from both accounts (they're the same according to user)
 		for (const proxy of this.proxyLists.account1.proxies) {
 			const ipPort = `${proxy.ip}:${proxy.port}`;
-			if (!ipSet.has(ipPort)) {
+			if (!ipSet.has(ipPort) && !this.isBlacklisted(ipPort)) {
 				ipSet.add(ipPort);
 				ipList.push(proxy);
 			}
@@ -444,7 +478,7 @@ class ProxyManager {
 
 		for (const proxy of this.proxyLists.account2.proxies) {
 			const ipPort = `${proxy.ip}:${proxy.port}`;
-			if (!ipSet.has(ipPort)) {
+			if (!ipSet.has(ipPort) && !this.isBlacklisted(ipPort)) {
 				ipSet.add(ipPort);
 				ipList.push(proxy);
 			}
