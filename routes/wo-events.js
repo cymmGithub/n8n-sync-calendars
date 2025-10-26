@@ -1,5 +1,5 @@
 const express = require('express');
-const { logger, getCurrentDateMidnight } = require('../utils');
+const { logger, getCurrentDate, getCurrentDateMidnight } = require('../utils');
 
 const router = express.Router();
 
@@ -8,10 +8,21 @@ router.get('/events', async (req, res) => {
 	try {
 		logger.info('Work order events endpoint called');
 
-		// Extract query parameters or use defaults
-		const page = req.query.page || 1;
-		const itemsPerPage = req.query.itemsPerPage || 100;
-		const updated_at_from = getCurrentDateMidnight();
+	// Extract query parameters or use defaults
+	const page = req.query.page || 1;
+	const itemsPerPage = req.query.itemsPerPage || 100;
+
+	// Determine which date parameter to use based on 'filter_by' query parameter
+	let date_from;
+	let updated_at_from;
+
+	if (req.query.filter_by === 'date_from') {
+		date_from = getCurrentDate();
+	}
+
+	if (req.query.filter_by === 'updated_at_from') {
+		updated_at_from = getCurrentDateMidnight();
+	}
 
 		// Validate WO_API_KEY exists
 		if (!process.env.WO_API_KEY) {
@@ -23,11 +34,18 @@ router.get('/events', async (req, res) => {
 			});
 		}
 
-		// Build WO API URL with query parameters
-		const woApiUrl = new URL('https://api.wymianaopon.pl/api/events/planned');
-		woApiUrl.searchParams.set('page', page);
-		woApiUrl.searchParams.set('itemsPerPage', itemsPerPage);
+	// Build WO API URL with query parameters
+	const woApiUrl = new URL('https://api.wymianaopon.pl/api/events/planned');
+	woApiUrl.searchParams.set('page', page);
+	woApiUrl.searchParams.set('itemsPerPage', itemsPerPage);
+
+	// Add date filters based on what was determined
+	if (date_from) {
+		woApiUrl.searchParams.set('date_from', date_from);
+	}
+	if (updated_at_from) {
 		woApiUrl.searchParams.set('updated_at_from', updated_at_from);
+	}
 
 		logger.info(`Fetching WO events from: ${woApiUrl.toString()}`);
 
@@ -64,7 +82,8 @@ router.get('/events', async (req, res) => {
 				parameters: {
 					page: parseInt(page),
 					itemsPerPage: parseInt(itemsPerPage),
-					updated_at_from,
+					...(date_from && { date_from }),
+					...(updated_at_from && { updated_at_from }),
 				},
 			},
 		});

@@ -11,13 +11,16 @@ jest.mock('../../utils', () => ({
 	getCurrentDateMidnight: jest.fn(() => '2025-01-15T00:00:00.000Z'),
 }));
 
-const woEventsRouter = require('../../routes/wo-events');
-
 describe('WO Events Routes', () => {
 	let app;
+	let woEventsRouter;
 	const originalEnv = process.env;
 
 	beforeEach(() => {
+		// Clear module cache and reload the router to ensure latest changes
+		jest.resetModules();
+		woEventsRouter = require('../../routes/wo-events');
+
 		// Create a fresh Express app for each test
 		app = express();
 		app.use(express.json());
@@ -103,7 +106,9 @@ describe('WO Events Routes', () => {
 	const fetchUrl = global.fetch.mock.calls[0][0];
 	expect(fetchUrl).toContain('page=1');
 	expect(fetchUrl).toContain('itemsPerPage=100');
-	expect(fetchUrl).toContain('updated_at_from=');
+	// Without begin parameter, no date filters should be added
+	expect(fetchUrl).not.toContain('updated_at_from');
+	expect(fetchUrl).not.toContain('date_from');
 });
 
 		it('should use custom pagination parameters', async () => {
@@ -203,5 +208,127 @@ describe('WO Events Routes', () => {
 			expect(responseTimestamp.getTime()).toBeGreaterThanOrEqual(beforeTime.getTime());
 			expect(responseTimestamp.getTime()).toBeLessThanOrEqual(afterTime.getTime());
 		});
+
+	it('should set date_from when filter_by=date_from', async () => {
+		process.env.WO_API_KEY = 'test-api-key';
+
+		global.fetch = jest.fn(() =>
+			Promise.resolve({
+				ok: true,
+				json: async () => [],
+			})
+		);
+
+		const response = await request(app)
+			.get('/wo/events?filter_by=date_from')
+			.expect(200);
+
+		// Verify metadata includes date_from
+		expect(response.body.metadata.parameters.date_from).toBe('2025-01-15');
+		expect(response.body.metadata.parameters.updated_at_from).toBeUndefined();
+
+		// Verify URL includes date_from parameter
+		const fetchUrl = global.fetch.mock.calls[0][0];
+		expect(fetchUrl).toContain('date_from=2025-01-15');
+		expect(fetchUrl).not.toContain('updated_at_from');
+	});
+
+	it('should set updated_at_from when filter_by=updated_at_from', async () => {
+		process.env.WO_API_KEY = 'test-api-key';
+
+		global.fetch = jest.fn(() =>
+			Promise.resolve({
+				ok: true,
+				json: async () => [],
+			})
+		);
+
+		const response = await request(app)
+			.get('/wo/events?filter_by=updated_at_from')
+			.expect(200);
+
+		// Verify metadata includes updated_at_from
+		expect(response.body.metadata.parameters.updated_at_from).toBe('2025-01-15T00:00:00.000Z');
+		expect(response.body.metadata.parameters.date_from).toBeUndefined();
+
+		// Verify URL includes updated_at_from parameter
+		const fetchUrl = global.fetch.mock.calls[0][0];
+		expect(fetchUrl).toContain('updated_at_from=2025-01-15T00%3A00%3A00.000Z');
+		expect(fetchUrl).not.toContain('date_from');
+	});
+
+	it('should not set any date filters when filter_by parameter is missing', async () => {
+		process.env.WO_API_KEY = 'test-api-key';
+
+		global.fetch = jest.fn(() =>
+			Promise.resolve({
+				ok: true,
+				json: async () => [],
+			})
+		);
+
+		const response = await request(app)
+			.get('/wo/events')
+			.expect(200);
+
+		// Verify metadata does not include date filters
+		expect(response.body.metadata.parameters.date_from).toBeUndefined();
+		expect(response.body.metadata.parameters.updated_at_from).toBeUndefined();
+
+		// Verify URL does not include date filter parameters
+		const fetchUrl = global.fetch.mock.calls[0][0];
+		expect(fetchUrl).not.toContain('date_from');
+		expect(fetchUrl).not.toContain('updated_at_from');
+	});
+
+	it('should not set any date filters when filter_by parameter has invalid value', async () => {
+		process.env.WO_API_KEY = 'test-api-key';
+
+		global.fetch = jest.fn(() =>
+			Promise.resolve({
+				ok: true,
+				json: async () => [],
+			})
+		);
+
+		const response = await request(app)
+			.get('/wo/events?filter_by=invalid_value')
+			.expect(200);
+
+		// Verify metadata does not include date filters
+		expect(response.body.metadata.parameters.date_from).toBeUndefined();
+		expect(response.body.metadata.parameters.updated_at_from).toBeUndefined();
+
+		// Verify URL does not include date filter parameters
+		const fetchUrl = global.fetch.mock.calls[0][0];
+		expect(fetchUrl).not.toContain('date_from');
+		expect(fetchUrl).not.toContain('updated_at_from');
+	});
+
+	it('should combine filter_by parameter with pagination parameters', async () => {
+		process.env.WO_API_KEY = 'test-api-key';
+
+		global.fetch = jest.fn(() =>
+			Promise.resolve({
+				ok: true,
+				json: async () => [],
+			})
+		);
+
+		const response = await request(app)
+			.get('/wo/events?page=2&itemsPerPage=50&filter_by=date_from')
+			.expect(200);
+
+		// Verify all parameters in metadata
+		expect(response.body.metadata.parameters.page).toBe(2);
+		expect(response.body.metadata.parameters.itemsPerPage).toBe(50);
+		expect(response.body.metadata.parameters.date_from).toBe('2025-01-15');
+
+		// Verify URL includes all parameters
+		const fetchUrl = global.fetch.mock.calls[0][0];
+		expect(fetchUrl).toContain('page=2');
+		expect(fetchUrl).toContain('itemsPerPage=50');
+		expect(fetchUrl).toContain('date_from=2025-01-15');
+	});
 	});
 });
