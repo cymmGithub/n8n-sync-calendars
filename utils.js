@@ -331,10 +331,15 @@ const browserPool = new BrowserPool();
 // Proxy Management System
 class ProxyManager {
 	constructor() {
-		this.proxyLists = {
-			account1: { proxies: [], credentials: null },
-			account2: { proxies: [], credentials: null },
-		};
+		// Dynamically detect available accounts from environment variables
+		this.availableAccounts = this.detectAvailableAccounts();
+		this.proxyLists = {};
+
+		// Initialize proxy lists for all available accounts
+		for (const accountNum of this.availableAccounts) {
+			this.proxyLists[`account${accountNum}`] = { proxies: [], credentials: null };
+		}
+
 		this.ipUsageCount = new Map(); // Track usage per IP:port
 		this.currentThreshold = 10; // Start with 10 uses per IP
 		this.lastUsedAccount = null; // Track which account was used last
@@ -343,6 +348,26 @@ class ProxyManager {
 		this.CACHE_TTL = 60 * 60 * 1000; // 1 hour
 		this.blacklistedIPs = new Set(); // Track blacklisted IPs
 		this.loadBlacklist();
+
+		logger.info(`ProxyManager initialized with ${this.availableAccounts.length} accounts: ${this.availableAccounts.join(', ')}`);
+	}
+
+	// Detect available WEBSHARE_ACCOUNT_* environment variables
+	detectAvailableAccounts() {
+		const accounts = [];
+		let accountNum = 1;
+
+		// Check for WEBSHARE_ACCOUNT_1, WEBSHARE_ACCOUNT_2, etc.
+		while (process.env[`WEBSHARE_ACCOUNT_${accountNum}`]) {
+			accounts.push(accountNum);
+			accountNum++;
+		}
+
+		if (accounts.length === 0) {
+			logger.warn('No WEBSHARE_ACCOUNT_* environment variables found');
+		}
+
+		return accounts;
 	}
 
 	// Load blacklisted IPs from environment variable
@@ -422,33 +447,37 @@ class ProxyManager {
 		return { proxies, credentials };
 	}
 
-	// Refresh proxy lists from both accounts
+	// Refresh proxy lists from all available accounts
 	async refreshProxyLists() {
 		try {
-			logger.info('Fetching proxy lists from Webshare accounts...');
+			logger.info(`Fetching proxy lists from ${this.availableAccounts.length} Webshare accounts...`);
 
-			const [data1, data2] = await Promise.all([
-				this.fetchProxyList(process.env.WEBSHARE_ACCOUNT_1),
-				this.fetchProxyList(process.env.WEBSHARE_ACCOUNT_2),
-			]);
+			// Fetch from all available accounts in parallel
+			const fetchPromises = this.availableAccounts.map(accountNum =>
+				this.fetchProxyList(process.env[`WEBSHARE_ACCOUNT_${accountNum}`])
+			);
 
-			const parsed1 = this.parseProxyList(data1);
-			const parsed2 = this.parseProxyList(data2);
+			const dataList = await Promise.all(fetchPromises);
 
-			this.proxyLists.account1 = parsed1;
-			this.proxyLists.account2 = parsed2;
+			// Parse and store results for each account
+			const accountStats = [];
+			for (let i = 0; i < this.availableAccounts.length; i++) {
+				const accountNum = this.availableAccounts[i];
+				const parsed = this.parseProxyList(dataList[i]);
+				this.proxyLists[`account${accountNum}`] = parsed;
+				accountStats.push(`Account${accountNum}=${parsed.proxies.length} IPs`);
+			}
 
 			this.lastFetch = Date.now();
 
-			logger.info(
-				`Proxy lists refreshed: Account1=${parsed1.proxies.length} IPs, Account2=${parsed2.proxies.length} IPs`
-			);
+			logger.info(`Proxy lists refreshed: ${accountStats.join(', ')}`);
 
 			return true;
 		} catch (error) {
 			logger.error(`Failed to refresh proxy lists: ${error.message}`);
 			// If we have cached data, continue using it
-			if (this.proxyLists.account1.proxies.length > 0) {
+			const firstAccount = this.availableAccounts[0];
+			if (firstAccount && this.proxyLists[`account${firstAccount}`]?.proxies.length > 0) {
 				logger.warn('Using cached proxy lists');
 				return false;
 			}
@@ -462,25 +491,26 @@ class ProxyManager {
 		return Date.now() - this.lastFetch > this.CACHE_TTL;
 	}
 
-	// Get all unique IPs from both accounts (excluding blacklisted ones)
+	// Get all unique IPs from all accounts (excluding blacklisted ones)
 	getAllUniqueIPs() {
 		const ipSet = new Set();
 		const ipList = [];
 
-		// Combine IPs from both accounts (they're the same according to user)
-		for (const proxy of this.proxyLists.account1.proxies) {
-			const ipPort = `${proxy.ip}:${proxy.port}`;
-			if (!ipSet.has(ipPort) && !this.isBlacklisted(ipPort)) {
-				ipSet.add(ipPort);
-				ipList.push(proxy);
-			}
-		}
+		// Combine IPs from all accounts
+		for (const accountNum of this.availableAccounts) {
+			const accountKey = `account${accountNum}`;
+			const accountData = this.proxyLists[accountKey];
 
-		for (const proxy of this.proxyLists.account2.proxies) {
-			const ipPort = `${proxy.ip}:${proxy.port}`;
-			if (!ipSet.has(ipPort) && !this.isBlacklisted(ipPort)) {
-				ipSet.add(ipPort);
-				ipList.push(proxy);
+			if (!accountData || !accountData.proxies) {
+				continue;
+			}
+
+			for (const proxy of accountData.proxies) {
+				const ipPort = `${proxy.ip}:${proxy.port}`;
+				if (!ipSet.has(ipPort) && !this.isBlacklisted(ipPort)) {
+					ipSet.add(ipPort);
+					ipList.push(proxy);
+				}
 			}
 		}
 
@@ -501,13 +531,22 @@ class ProxyManager {
 			throw new Error('No proxies available');
 		}
 
-		// Determine next account (alternate between 1 and 2)
-		const nextAccount = this.lastUsedAccount === 1 ? 2 : 1;
+		// Determine next account (rotate through all available accounts)
+		let nextAccount;
+		if (this.lastUsedAccount === null) {
+			// First use, start with account 1
+			nextAccount = this.availableAccounts[0];
+		} else {
+			// Find current account index and move to next
+			const currentIndex = this.availableAccounts.indexOf(this.lastUsedAccount);
+			const nextIndex = (currentIndex + 1) % this.availableAccounts.length;
+			nextAccount = this.availableAccounts[nextIndex];
+		}
 		this.lastUsedAccount = nextAccount;
 
 		// Get credentials for selected account
 		const accountKey = `account${nextAccount}`;
-		const credentials = this.proxyLists[accountKey].credentials;
+		const credentials = this.proxyLists[accountKey]?.credentials;
 
 		if (!credentials) {
 			throw new Error(`No credentials available for ${accountKey}`);

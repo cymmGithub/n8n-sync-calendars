@@ -558,31 +558,32 @@ invalid-line
 			});
 		});
 
-		describe('getRandomProxy (unit test with mock data)', () => {
-			beforeEach(() => {
-				// Reset proxy manager state for testing
-				proxyManager.proxyLists = {
-					account1: {
-						proxies: [
-							{ ip: '1.1.1.1', port: '8001' },
-							{ ip: '2.2.2.2', port: '8002' },
-						],
-						credentials: { username: 'user1', password: 'pass1' }
-					},
-					account2: {
-						proxies: [
-							{ ip: '3.3.3.3', port: '8003' },
-							{ ip: '4.4.4.4', port: '8004' },
-						],
-						credentials: { username: 'user2', password: 'pass2' }
-					}
-				};
-				proxyManager.lastFetch = Date.now();
-				proxyManager.ipUsageCount.clear();
-				proxyManager.currentThreshold = 10;
-				proxyManager.lastUsedAccount = null;
-				proxyManager.lastUsedIP = null;
-			});
+	describe('getRandomProxy (unit test with mock data)', () => {
+		beforeEach(() => {
+			// Reset proxy manager state for testing
+			proxyManager.availableAccounts = [1, 2];
+			proxyManager.proxyLists = {
+				account1: {
+					proxies: [
+						{ ip: '1.1.1.1', port: '8001' },
+						{ ip: '2.2.2.2', port: '8002' },
+					],
+					credentials: { username: 'user1', password: 'pass1' }
+				},
+				account2: {
+					proxies: [
+						{ ip: '3.3.3.3', port: '8003' },
+						{ ip: '4.4.4.4', port: '8004' },
+					],
+					credentials: { username: 'user2', password: 'pass2' }
+				}
+			};
+			proxyManager.lastFetch = Date.now();
+			proxyManager.ipUsageCount.clear();
+			proxyManager.currentThreshold = 10;
+			proxyManager.lastUsedAccount = null;
+			proxyManager.lastUsedIP = null;
+		});
 
 			it('should return proxy with required properties', async () => {
 				const result = await proxyManager.getRandomProxy();
@@ -715,27 +716,28 @@ invalid-line
 				});
 			});
 
-			describe('getAllUniqueIPs with blacklist', () => {
-				beforeEach(() => {
-					// Set up test proxy lists
-					proxyManager.proxyLists = {
-						account1: {
-							proxies: [
-								{ ip: '1.1.1.1', port: '8001' },
-								{ ip: '2.2.2.2', port: '8002' },
-								{ ip: '3.3.3.3', port: '8003' },
-							],
-							credentials: { username: 'user1', password: 'pass1' }
-						},
-						account2: {
-							proxies: [
-								{ ip: '4.4.4.4', port: '8004' },
-								{ ip: '5.5.5.5', port: '8005' },
-							],
-							credentials: { username: 'user2', password: 'pass2' }
-						}
-					};
-				});
+		describe('getAllUniqueIPs with blacklist', () => {
+			beforeEach(() => {
+				// Set up test proxy lists
+				proxyManager.availableAccounts = [1, 2];
+				proxyManager.proxyLists = {
+					account1: {
+						proxies: [
+							{ ip: '1.1.1.1', port: '8001' },
+							{ ip: '2.2.2.2', port: '8002' },
+							{ ip: '3.3.3.3', port: '8003' },
+						],
+						credentials: { username: 'user1', password: 'pass1' }
+					},
+					account2: {
+						proxies: [
+							{ ip: '4.4.4.4', port: '8004' },
+							{ ip: '5.5.5.5', port: '8005' },
+						],
+						credentials: { username: 'user2', password: 'pass2' }
+					}
+				};
+			});
 
 				it('should filter out blacklisted IPs', () => {
 					process.env.PROXY_BLACKLIST = '1.1.1.1,4.4.4.4:8004';
@@ -780,32 +782,33 @@ invalid-line
 				});
 			});
 
-			describe('getRandomProxy with blacklist', () => {
-				beforeEach(() => {
-					// Set up test proxy lists
-					proxyManager.proxyLists = {
-						account1: {
-							proxies: [
-								{ ip: '1.1.1.1', port: '8001' },
-								{ ip: '2.2.2.2', port: '8002' },
-								{ ip: '3.3.3.3', port: '8003' },
-							],
-							credentials: { username: 'user1', password: 'pass1' }
-						},
-						account2: {
-							proxies: [
-								{ ip: '4.4.4.4', port: '8004' },
-								{ ip: '5.5.5.5', port: '8005' },
-							],
-							credentials: { username: 'user2', password: 'pass2' }
-						}
-					};
-					proxyManager.lastFetch = Date.now();
-					proxyManager.ipUsageCount.clear();
-					proxyManager.currentThreshold = 10;
-					proxyManager.lastUsedAccount = null;
-					proxyManager.lastUsedIP = null;
-				});
+		describe('getRandomProxy with blacklist', () => {
+			beforeEach(() => {
+				// Set up test proxy lists
+				proxyManager.availableAccounts = [1, 2];
+				proxyManager.proxyLists = {
+					account1: {
+						proxies: [
+							{ ip: '1.1.1.1', port: '8001' },
+							{ ip: '2.2.2.2', port: '8002' },
+							{ ip: '3.3.3.3', port: '8003' },
+						],
+						credentials: { username: 'user1', password: 'pass1' }
+					},
+					account2: {
+						proxies: [
+							{ ip: '4.4.4.4', port: '8004' },
+							{ ip: '5.5.5.5', port: '8005' },
+						],
+						credentials: { username: 'user2', password: 'pass2' }
+					}
+				};
+				proxyManager.lastFetch = Date.now();
+				proxyManager.ipUsageCount.clear();
+				proxyManager.currentThreshold = 10;
+				proxyManager.lastUsedAccount = null;
+				proxyManager.lastUsedIP = null;
+			});
 
 				it('should never return a blacklisted IP', async () => {
 					process.env.PROXY_BLACKLIST = '1.1.1.1,4.4.4.4:8004';
