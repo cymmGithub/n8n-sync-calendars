@@ -35,6 +35,8 @@ services:
       PORT: ${PORT}
       WEBSHARE_ACCOUNT_1: ${WEBSHARE_ACCOUNT_1}
       WEBSHARE_ACCOUNT_2: ${WEBSHARE_ACCOUNT_2}
+      WEBSHARE_ACCOUNT_3: ${WEBSHARE_ACCOUNT_3}
+      WEBSHARE_ACCOUNT_4: ${WEBSHARE_ACCOUNT_4}
     volumes:
       - ./:/app/
   redis:
