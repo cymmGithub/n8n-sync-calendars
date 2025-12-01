@@ -381,14 +381,17 @@ router.post('/obliterator', async (req, res) => {
 
 	let browser;
 	let context;
+	let page;
+	let browserReleased = false;
 	const results = [];
 	const errors = [];
 
 	try {
 		// Use browser pool
 		browser = await browserPool.getBrowser(debug_mode);
-		const { context: ctx, page } = await createBrowserContext(browser, debug_mode);
+		const { context: ctx, page: pg } = await createBrowserContext(browser, debug_mode);
 		context = ctx;
+		page = pg;
 
 		// Authenticate once
 		await authenticate_oponeo(page, email, password);
@@ -411,7 +414,10 @@ router.post('/obliterator', async (req, res) => {
 			await page.getByRole('link', { name: 'Usuń rezerwację' }).click();
 			await page.getByText('Usuń', { exact: true }).click();
 
-			await page.waitForTimeout(3000);
+			// Wait for navigation or network to settle instead of fixed timeout
+			await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {
+				logger.warn('Network idle timeout - continuing with cleanup');
+			});
 
 			results.push({
 				success: true,
@@ -431,11 +437,15 @@ router.post('/obliterator', async (req, res) => {
 		});
 	}
 
-	// Close context and release browser back to pool
+	// Close page first, then context, then release browser back to pool
+	if (page) {
+		await page.close();
+	}
 	if (context) {
 		await context.close();
 	}
 	await browserPool.releaseBrowser();
+	browserReleased = true;
 
 	res.json({
 		success: true,
@@ -449,6 +459,13 @@ router.post('/obliterator', async (req, res) => {
 	});
 
 	// Cleanup on error
+	if (page) {
+		try {
+			await page.close();
+		} catch (e) {
+			logger.error('Error closing page:', e.message);
+		}
+	}
 	if (context) {
 		try {
 			await context.close();
@@ -456,7 +473,7 @@ router.post('/obliterator', async (req, res) => {
 			logger.error('Error closing context:', e.message);
 		}
 	}
-	if (browser) {
+	if (!browserReleased && browser) {
 		await browserPool.releaseBrowser();
 	}
 
