@@ -261,13 +261,18 @@ function isoToTicks(isoString) {
 	return ms * BigInt(TICKS_PER_MILLISECOND) + BigInt(EPOCH_TICKS_AT_UNIX_EPOCH);
 }
 
-// Browser pooling system
+// Browser pooling system with context management
 class BrowserPool {
 	constructor() {
 		this.browser = null;
+		this.context = null;
+		this.page = null;
+		this.isAuthenticated = false;
 		this.lastUsed = null;
 		this.isInUse = false;
 		this.IDLE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+		this.contextCleanupTimer = null;
+		this.browserCleanupTimer = null;
 	}
 
 	async getBrowser(debugMode = false) {
@@ -293,12 +298,85 @@ class BrowserPool {
 		return this.browser;
 	}
 
+	async getContext(debugMode = false) {
+		// If context exists and is not stale, reuse it
+		if (this.context && this.page && !this.isStale()) {
+			logger.info('Reusing existing context and page', {
+				authenticated: this.isAuthenticated
+			});
+			this.isInUse = true;
+			this.lastUsed = Date.now();
+			return {
+				browser: this.browser,
+				context: this.context,
+				page: this.page,
+				isAuthenticated: this.isAuthenticated
+			};
+		}
+
+		// Close stale context if exists
+		if (this.context) {
+			logger.info('Closing stale context');
+			await this.closeContext();
+		}
+
+		// Get or create browser
+		const browser = await this.getBrowser(debugMode);
+
+		// Create new context and page
+		logger.info('Creating new context and page');
+		const { context, page } = await createBrowserContext(browser, debugMode);
+		this.context = context;
+		this.page = page;
+		this.isAuthenticated = false;
+		this.isInUse = true;
+		this.lastUsed = Date.now();
+
+		return {
+			browser: this.browser,
+			context: this.context,
+			page: this.page,
+			isAuthenticated: this.isAuthenticated
+		};
+	}
+
+	markAsAuthenticated() {
+		this.isAuthenticated = true;
+		logger.info('Context marked as authenticated');
+	}
+
+	async releaseContext() {
+		this.isInUse = false;
+		this.lastUsed = Date.now();
+
+		logger.info('Context released, will cleanup after idle timeout');
+
+		// Clear existing cleanup timer if any
+		if (this.contextCleanupTimer) {
+			clearTimeout(this.contextCleanupTimer);
+		}
+
+		// Start cleanup timer
+		this.contextCleanupTimer = setTimeout(async () => {
+			if (!this.isInUse && this.isStale()) {
+				logger.info('Closing idle context and browser');
+				await this.closeContext();
+				await this.closeBrowser();
+			}
+		}, this.IDLE_TIMEOUT);
+	}
+
 	async releaseBrowser() {
 		this.isInUse = false;
 		this.lastUsed = Date.now();
 
+		// Clear existing cleanup timer if any
+		if (this.browserCleanupTimer) {
+			clearTimeout(this.browserCleanupTimer);
+		}
+
 		// Start cleanup timer
-		setTimeout(async () => {
+		this.browserCleanupTimer = setTimeout(async () => {
 			if (!this.isInUse && this.isStale()) {
 				logger.info('Closing idle browser instance');
 				await this.closeBrowser();
@@ -311,7 +389,36 @@ class BrowserPool {
 		return Date.now() - this.lastUsed > this.IDLE_TIMEOUT;
 	}
 
+	async closeContext() {
+		// Clear cleanup timer if any
+		if (this.contextCleanupTimer) {
+			clearTimeout(this.contextCleanupTimer);
+			this.contextCleanupTimer = null;
+		}
+
+		if (this.context) {
+			try {
+				await this.context.close();
+				logger.info('Context closed successfully');
+			} catch (error) {
+				logger.error('Error closing context:', error.message);
+			}
+			this.context = null;
+			this.page = null;
+			this.isAuthenticated = false;
+		}
+	}
+
 	async closeBrowser() {
+		// Clear both cleanup timers if any
+		if (this.browserCleanupTimer) {
+			clearTimeout(this.browserCleanupTimer);
+			this.browserCleanupTimer = null;
+		}
+
+		// Close context first if it exists
+		await this.closeContext();
+
 		if (this.browser) {
 			try {
 				await this.browser.close();
@@ -321,6 +428,17 @@ class BrowserPool {
 			this.browser = null;
 			this.isInUse = false;
 			this.lastUsed = null;
+		}
+	}
+
+	clearTimers() {
+		if (this.contextCleanupTimer) {
+			clearTimeout(this.contextCleanupTimer);
+			this.contextCleanupTimer = null;
+		}
+		if (this.browserCleanupTimer) {
+			clearTimeout(this.browserCleanupTimer);
+			this.browserCleanupTimer = null;
 		}
 	}
 }

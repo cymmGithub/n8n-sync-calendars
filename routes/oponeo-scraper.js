@@ -25,15 +25,17 @@ router.post('/scraper', async (req, res) => {
 		return res.status(400).send('Email and password are required');
 	}
 
-	let browser;
-	let context;
 	try {
-		// Use browser pool
-		browser = await browserPool.getBrowser(debug_mode);
-		const { context: ctx, page } = await createBrowserContext(browser, debug_mode);
-		context = ctx;
+		// Use browser pool with context management
+		const { context, page, isAuthenticated } = await browserPool.getContext(debug_mode);
 
-		await authenticate_oponeo(page, email, password);
+		// Authenticate only if not already authenticated
+		if (!isAuthenticated) {
+			await authenticate_oponeo(page, email, password);
+			browserPool.markAsAuthenticated();
+		} else {
+			logger.info('Reusing authenticated session');
+		}
 
 		const reservations_from_now_url = get_reservations_from_now_url();
 
@@ -86,11 +88,8 @@ router.post('/scraper', async (req, res) => {
 		`Reservation processing complete: Total processed: ${processed}, Included: ${detailed_reservations.length}, Skipped: ${skipped}`
 	);
 
-	// Close context and release browser back to pool
-	if (context) {
-		await context.close();
-	}
-	await browserPool.releaseBrowser();
+	// Release context back to pool (keep it alive for potential reuse)
+	await browserPool.releaseContext();
 
 	const final_stats = {
 		pagination: reservations_data.stats,
@@ -118,17 +117,8 @@ router.post('/scraper', async (req, res) => {
 		stack: error.stack,
 	});
 
-	// Cleanup on error
-	if (context) {
-		try {
-			await context.close();
-		} catch (e) {
-			logger.error('Error closing context:', e.message);
-		}
-	}
-	if (browser) {
-		await browserPool.releaseBrowser();
-	}
+	// Release context on error (let pool manage cleanup)
+	await browserPool.releaseContext();
 
 	res.status(500).json({
 		success: false,
@@ -162,20 +152,21 @@ router.post('/mutator', async (req, res) => {
 		});
 	}
 
-	let browser;
-	let context;
 	const results = [];
 	const errors = [];
 
 	try {
-		// Use browser pool
-		browser = await browserPool.getBrowser(debug_mode);
-		const { context: ctx, page } = await createBrowserContext(browser, debug_mode);
-		context = ctx;
+		// Use browser pool with context management
+		const { context, page, isAuthenticated } = await browserPool.getContext(debug_mode);
 
-		// Authenticate once
-		await authenticate_oponeo(page, email, password);
-		logger.info('Authentication successful, starting reservation mutations');
+		// Authenticate only if not already authenticated
+		if (!isAuthenticated) {
+			await authenticate_oponeo(page, email, password);
+			browserPool.markAsAuthenticated();
+			logger.info('Authentication successful, starting reservation mutations');
+		} else {
+			logger.info('Reusing authenticated session, starting reservation mutations');
+		}
 
 		// Process each reservation
 		for (let i = 0; i < reservations.length; i++) {
@@ -315,11 +306,8 @@ router.post('/mutator', async (req, res) => {
 		}
 	}
 
-	// Close context and release browser back to pool
-	if (context) {
-		await context.close();
-	}
-	await browserPool.releaseBrowser();
+	// Release context back to pool (keep it alive for potential reuse)
+	await browserPool.releaseContext();
 
 	const summary = {
 		total: reservations.length,
@@ -348,17 +336,8 @@ router.post('/mutator', async (req, res) => {
 		stack: error.stack,
 	});
 
-	// Cleanup on error
-	if (context) {
-		try {
-			await context.close();
-		} catch (e) {
-			logger.error('Error closing context:', e.message);
-		}
-	}
-	if (browser) {
-		await browserPool.releaseBrowser();
-	}
+	// Release context on error (let pool manage cleanup)
+	await browserPool.releaseContext();
 
 	res.status(500).json({
 		success: false,
@@ -394,20 +373,21 @@ router.post('/obliterator', async (req, res) => {
 		});
 	}
 
-	let browser;
-	let context;
 	const results = [];
 	const errors = [];
 
 	try {
-		// Use browser pool
-		browser = await browserPool.getBrowser(debug_mode);
-		const { context: ctx, page } = await createBrowserContext(browser, debug_mode);
-		context = ctx;
+		// Use browser pool with context management
+		const { context, page, isAuthenticated } = await browserPool.getContext(debug_mode);
 
-		// Authenticate once
-		await authenticate_oponeo(page, email, password);
-		logger.info('Authentication successful, starting reservation obliteration');
+		// Authenticate only if not already authenticated
+		if (!isAuthenticated) {
+			await authenticate_oponeo(page, email, password);
+			browserPool.markAsAuthenticated();
+			logger.info('Authentication successful, starting reservation obliteration');
+		} else {
+			logger.info('Reusing authenticated session, starting reservation obliteration');
+		}
 
 		// Process each reservation
 		for (let i = 0; i < oponeoReservationIds.length; i++) {
@@ -465,11 +445,8 @@ router.post('/obliterator', async (req, res) => {
 			}
 		}
 
-		// Close context and release browser back to pool
-		if (context) {
-			await context.close();
-		}
-		await browserPool.releaseBrowser();
+		// Release context back to pool (keep it alive for next endpoint)
+		await browserPool.releaseContext();
 
 		const summary = {
 			total: oponeoReservationIds.length,
@@ -498,17 +475,8 @@ router.post('/obliterator', async (req, res) => {
 			stack: error.stack,
 		});
 
-		// Cleanup on error
-		if (context) {
-			try {
-				await context.close();
-			} catch (e) {
-				logger.error('Error closing context:', e.message);
-			}
-		}
-		if (browser) {
-			await browserPool.releaseBrowser();
-		}
+		// Release context on error (let pool manage cleanup)
+		await browserPool.releaseContext();
 
 		res.status(500).json({
 			success: false,
