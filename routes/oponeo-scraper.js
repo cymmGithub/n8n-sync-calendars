@@ -371,7 +371,7 @@ router.post('/mutator', async (req, res) => {
 });
 
 router.post('/obliterator', async (req, res) => {
-	const { debug_mode = false, oponeoReservationId = null } = req.body;
+	const { debug_mode = false, oponeoReservationIds = [] } = req.body;
 	const email = process.env.OPONEO_EMAIL;
 	const password = process.env.OPONEO_PASSWORD;
 
@@ -379,112 +379,145 @@ router.post('/obliterator', async (req, res) => {
 		return res.status(400).send('Email and password are required');
 	}
 
+	// Handle empty array case - this is totally fine
+	if (oponeoReservationIds.length === 0) {
+		logger.info('No reservations to obliterate - empty array provided');
+		return res.json({
+			success: true,
+			results: [],
+			errors: [],
+			metadata: {
+				timestamp: new Date().toISOString(),
+				processed: 0,
+				message: 'No reservations to obliterate',
+			},
+		});
+	}
+
 	let browser;
 	let context;
-	let page;
-	let browserReleased = false;
 	const results = [];
 	const errors = [];
 
 	try {
 		// Use browser pool
 		browser = await browserPool.getBrowser(debug_mode);
-		const { context: ctx, page: pg } = await createBrowserContext(browser, debug_mode);
+		const { context: ctx, page } = await createBrowserContext(browser, debug_mode);
 		context = ctx;
-		page = pg;
 
 		// Authenticate once
 		await authenticate_oponeo(page, email, password);
 		logger.info('Authentication successful, starting reservation obliteration');
 
-		try {
-			if (!oponeoReservationId) {
-				throw new Error('MISSING_ID - oponeoReservationId is required');
-			}
-
-			// Navigate to the reservation edit page
-			const editUrl = `https://autoserwis.oponeo.pl/edycja-rezerwacji/${oponeoReservationId}`;
-			logger.info(`Navigating to: ${editUrl}`);
-
-			await page.goto(editUrl, { waitUntil: 'load' });
-
-			// Wait a moment for the page to fully load
-			await page.waitForTimeout(1000);
-
-			await page.getByRole('link', { name: 'Usuń rezerwację' }).click();
-			await page.getByText('Usuń', { exact: true }).click();
-
-			// Wait for navigation or network to settle instead of fixed timeout
-			await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {
-				logger.warn('Network idle timeout - continuing with cleanup');
-			});
-
-			results.push({
-				success: true,
-				message: `Successfully obliterated ${oponeoReservationId}`,
-				timestamp: new Date().toISOString(),
-			});
-		} catch (reservationError) {
-			logger.error(
-				`Failed to process reservation ${oponeoReservationId}:`,
-				reservationError.message
+		// Process each reservation
+		for (let i = 0; i < oponeoReservationIds.length; i++) {
+			const oponeoReservationId = oponeoReservationIds[i];
+			logger.info(
+				`Processing obliteration ${i + 1}/${oponeoReservationIds.length}: ${oponeoReservationId}`
 			);
 
-			errors.push({
-				oponeoReservationId,
-				error: reservationError.message,
+			try {
+				if (!oponeoReservationId) {
+					throw new Error('MISSING_ID - oponeoReservationId is required');
+				}
+
+				// Navigate to the reservation edit page
+				const editUrl = `https://autoserwis.oponeo.pl/edycja-rezerwacji/${oponeoReservationId}`;
+				logger.info(`Navigating to: ${editUrl}`);
+
+				await page.goto(editUrl, { waitUntil: 'load' });
+
+				// Wait a moment for the page to fully load
+				await page.waitForTimeout(1000);
+
+				await page.getByRole('link', { name: 'Usuń rezerwację' }).click();
+				await page.getByText('Usuń', { exact: true }).click();
+
+				// Wait for navigation or network to settle instead of fixed timeout
+				await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {
+					logger.warn('Network idle timeout - continuing with cleanup');
+				});
+
+				results.push({
+					index: i,
+					success: true,
+					oponeoReservationId,
+					message: `Successfully obliterated ${oponeoReservationId}`,
+					timestamp: new Date().toISOString(),
+				});
+
+				logger.info(`Successfully obliterated reservation ${oponeoReservationId}`);
+			} catch (reservationError) {
+				logger.error(
+					`Failed to obliterate reservation ${i + 1}:`,
+					reservationError.message
+				);
+
+				errors.push({
+					index: i,
+					oponeoReservationId,
+					error: reservationError.message,
+					timestamp: new Date().toISOString(),
+				});
+
+				// Continue with next reservation
+				continue;
+			}
+		}
+
+		// Close context and release browser back to pool
+		if (context) {
+			await context.close();
+		}
+		await browserPool.releaseBrowser();
+
+		const summary = {
+			total: oponeoReservationIds.length,
+			successful: results.length,
+			failed: errors.length,
+			success_rate:
+				((results.length / oponeoReservationIds.length) * 100).toFixed(2) + '%',
+		};
+
+		logger.info('Obliteration process complete:', summary);
+
+		res.json({
+			success: true,
+			summary: summary,
+			results: results,
+			errors: errors,
+			metadata: {
 				timestamp: new Date().toISOString(),
+				processed: oponeoReservationIds.length,
+				authentication: 'successful',
+			},
+		});
+	} catch (error) {
+		logger.error('Error during obliteration process', {
+			error: error.message,
+			stack: error.stack,
+		});
+
+		// Cleanup on error
+		if (context) {
+			try {
+				await context.close();
+			} catch (e) {
+				logger.error('Error closing context:', e.message);
+			}
+		}
+		if (browser) {
+			await browserPool.releaseBrowser();
+		}
+
+		res.status(500).json({
+			success: false,
+			error: error.message,
+			details: 'An error occurred during the obliteration process',
+			partial_results: results,
+			errors: errors,
 		});
 	}
-
-	// Close page first, then context, then release browser back to pool
-	if (page) {
-		await page.close();
-	}
-	if (context) {
-		await context.close();
-	}
-	await browserPool.releaseBrowser();
-	browserReleased = true;
-
-	res.json({
-		success: true,
-		results: results,
-		errors: errors,
-	});
-} catch (error) {
-	logger.error('Error during obliteration process', {
-		error: error.message,
-		stack: error.stack,
-	});
-
-	// Cleanup on error
-	if (page) {
-		try {
-			await page.close();
-		} catch (e) {
-			logger.error('Error closing page:', e.message);
-		}
-	}
-	if (context) {
-		try {
-			await context.close();
-		} catch (e) {
-			logger.error('Error closing context:', e.message);
-		}
-	}
-	if (!browserReleased && browser) {
-		await browserPool.releaseBrowser();
-	}
-
-	res.status(500).json({
-		success: false,
-		error: error.message,
-		details: 'An error occurred during the obliteration process',
-		partial_results: results,
-		errors,
-	});
-}
 });
 
 module.exports = router;
