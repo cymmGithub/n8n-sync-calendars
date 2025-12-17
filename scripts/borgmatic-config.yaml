@@ -1,0 +1,107 @@
+# Borgmatic Configuration for sync-calendars Disaster Recovery
+# Place this file at: /etc/borgmatic/config.yaml or ~/.config/borgmatic/config.yaml
+#
+# Install borgmatic: sudo apt-get install borgmatic
+# Or with pip: sudo pip3 install borgmatic
+#
+# Test config: borgmatic config validate
+# Run backup: borgmatic --verbosity 1
+# List archives: borgmatic list
+# Extract: borgmatic extract --archive latest
+
+location:
+    # Repository location (set via environment variable or here)
+    repositories:
+        - "${BORG_REPO}"
+        # Example: ssh://xxx@xxx.repo.borgbase.com/./repo
+
+    # Paths to backup
+    source_directories:
+        - /home/deploy/apps/sync-calendars
+
+    # Patterns to exclude
+    exclude_patterns:
+        - '*/node_modules'
+        - '*/.git'
+        - '*.log'
+        - '*/.env'
+        - '*/backups/*.tar.gz'
+
+    # Exclude files that don't need backup
+    exclude_if_present:
+        - .nobackup
+
+storage:
+    # Encryption passphrase (set via environment variable)
+    encryption_passphrase: "${BORG_PASSPHRASE}"
+
+    # Compression algorithm (lz4 is fast, zstd is better compression)
+    compression: lz4
+
+    # Repository lock timeout
+    lock_wait: 5
+
+    # Archive name format
+    archive_name_format: 'backup-{now:%Y-%m-%d-%H%M%S}'
+
+retention:
+    # Retention policy
+    keep_daily: 7
+    keep_weekly: 4
+    keep_monthly: 6
+    keep_yearly: 1
+
+    # Prefix for archives to apply retention to
+    prefix: 'backup-'
+
+consistency:
+    # Consistency checks to run after backups
+    checks:
+        - name: repository
+          frequency: 2 weeks
+        - name: archives
+          frequency: 1 month
+
+    # Check last N archives
+    check_last: 3
+
+hooks:
+    # Commands to run before backup
+    before_backup:
+        # Stop containers for consistent backup
+        - echo "Stopping containers..."
+        - cd /home/deploy/apps/sync-calendars && docker compose stop
+
+        # Export Docker volumes
+        - echo "Exporting n8n_data volume..."
+        - mkdir -p /home/deploy/apps/sync-calendars/backups
+        - docker run --rm -v sync-calendars_n8n_data:/volume -v /home/deploy/apps/sync-calendars/backups:/backup alpine:latest tar czf /backup/n8n_data.tar.gz -C /volume .
+
+        - echo "Exporting redis_data volume..."
+        - docker run --rm -v sync-calendars_redis_data:/volume -v /home/deploy/apps/sync-calendars/backups:/backup alpine:latest tar czf /backup/redis_data.tar.gz -C /volume .
+
+    # Commands to run after backup
+    after_backup:
+        # Restart containers
+        - echo "Starting containers..."
+        - cd /home/deploy/apps/sync-calendars && docker compose start
+
+        # Clean up temporary volume dumps
+        - echo "Cleaning up temporary files..."
+        - rm -f /home/deploy/apps/sync-calendars/backups/*.tar.gz
+
+    # Commands to run on error
+    on_error:
+        # Ensure containers are started even if backup fails
+        - echo "Error occurred, ensuring containers are started..."
+        - cd /home/deploy/apps/sync-calendars && docker compose start || true
+
+    # Optional: Send notifications (uncomment and configure as needed)
+    # healthchecks:
+    #     ping_url: https://hc-ping.com/your-uuid-here
+
+    # ntfy:
+    #     topic: borgmatic-backups
+    #     server: https://ntfy.sh
+    #     username: your_username
+    #     password: your_password
