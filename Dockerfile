@@ -2,7 +2,7 @@ FROM mcr.microsoft.com/playwright:v1.56.1
 RUN apt-get update && apt-get install -y vim && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package*.json ./
-RUN npm install --ci --omit=dev || npm install --omit=dev
+RUN npm ci && npm cache clean --force
 COPY . .
 EXPOSE 3001
 CMD [ "node", "server.js" ]
