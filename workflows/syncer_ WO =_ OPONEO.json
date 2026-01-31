@@ -1,0 +1,825 @@
+{
+  "name": "syncer: WO => OPONEO",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "keys",
+        "keyPattern": "WO:*"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -960,
+        64
+      ],
+      "id": "ff0782db-65b2-4cff-9ed9-3c1a3abcada1",
+      "name": "Current Redis Records",
+      "credentials": {
+        "redis": {
+          "id": "HDbs663OT229v1Sy",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://sync-service:3001/oponeo/obliterator",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -464,
+        176
+      ],
+      "id": "da1ba6bd-5847-4ba4-b559-18b47eeeb4dc",
+      "name": "Obliterator",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://sync-service:3001/oponeo/obliterator",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        544,
+        160
+      ],
+      "id": "35f99313-c1a1-495e-a45e-4e0ff4bcbe50",
+      "name": "Obliterator1",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://sync-service:3001/oponeo/mutator",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        416
+      ],
+      "id": "c78d4b4f-66c0-4dea-b51f-fa2bb4491eae",
+      "name": "Mutator",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "=WO:{{ $json.woId }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -464,
+        -32
+      ],
+      "id": "422c2736-6db0-47e5-9c38-539914050b0d",
+      "name": "Redis4",
+      "credentials": {
+        "redis": {
+          "id": "HDbs663OT229v1Sy",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "mergeByIndex"
+      },
+      "name": "Merge results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        416
+      ],
+      "id": "0b258144-7512-45b8-9f10-959873e73ad9"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Custom Code Node\n// This code compares redisValue times with item dates\n// Get input items\nconst input = $input.all()[0].json;\n\nif (input.withinHoursReservations.length < 0) {\n  return [];\n}\n\nconst {withinHoursReservations} = input;\n\nconst convertToZulu = (timestamp) => {\n  return new Date(timestamp.replace(/(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\+\\d{2}:\\d{2}$/, '$1.000Z'));\n};\n\n// Process each item\nconst outputItems = withinHoursReservations.map((item) => {\n    if(!item.redisValue) return null;\n  \n    // Parse the redisValue JSON string\n    const redisData = JSON.parse(item.redisValue);\n    \n    // Extract Redis times\n    const redisStartTime = new Date(redisData.startTime);\n    const redisEndTime = new Date(redisData.endTime);\n    \n    // Get item dates\n    const itemStartDate = item.startDate ? convertToZulu(item.startDate) : null;\n    const itemEndDate = item.endDate ? convertToZulu(item.endDate) : null;\n    \n    // Perform comparisons\n    const startTimeMatch = itemStartDate ? redisStartTime.getTime() === itemStartDate.getTime() : false;\n    const endTimeMatch = itemEndDate ? redisEndTime.getTime() === itemEndDate.getTime() : false;\n    const timesMatch = startTimeMatch && endTimeMatch;\n    const woId = item.id;\n    // Only return item if times DON'T match\n    if (!timesMatch) {\n      // return {\n      //   woId:\n      //     {\n      //       value: {\n      //         ...redisData,\n      //       endTime: itemEndDate,\n      //     }}\n      // }\n      return {\n        json: {\n            oponeoReservationId: redisData.oponeoReservationId,\n        }\n      };\n    }\n    \n    // Return null for matching times (will be filtered out)\n    return null;\n \n}).filter(item => item !== null); // Remove null items\n\nreturn outputItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        160
+      ],
+      "id": "3f7e601e-f118-4fac-9c46-76e283aa877c",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "af150d69-a5ea-487c-b80a-4f55ac939e3b",
+              "name": "=id",
+              "value": "={{ $json.id.toString() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -656,
+        496
+      ],
+      "id": "c38914aa-2a20-48dc-8b84-cde5fa1f0224",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "=redisValue",
+        "key": "=WO:{{ $json.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -432,
+        496
+      ],
+      "id": "d54d63fd-583e-41f5-befe-9ffc09e5da5e",
+      "name": "Redis",
+      "credentials": {
+        "redis": {
+          "id": "HDbs663OT229v1Sy",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data.items",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        400
+      ],
+      "id": "38ab5c9b-399e-43fe-9554-3ca18de8ffb1",
+      "name": "Split Out1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This code prepares Redis-ready key-value pairs from nested reservation objects\nconst results = $json.results || [];\n\nreturn results.map(item => {\n  return {\n    json: {\n      key: String(item.reservation.woReservationId),\n      value: JSON.stringify({\n        oponeoReservationId: item.reservationId,\n        startTime: item.startTime,\n        endTime: item.endTime,\n        lastSeen: new Date().toISOString(),\n\t}),\n}}});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        416
+      ],
+      "id": "7c03b9e3-b0d5-46e4-bdb1-ee614f803419",
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=WO:{{ $json.key }}",
+        "value": "={{ $json.value }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        416
+      ],
+      "id": "15db109c-b3f0-4630-9ed8-fda08a18abd5",
+      "name": "Redis5",
+      "credentials": {
+        "redis": {
+          "id": "HDbs663OT229v1Sy",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "if ($input.first().json.outOfHoursReservations.length > 0) {\n  return $input.first().json.outOfHoursReservations\n} else {\n  return [];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        704
+      ],
+      "id": "d89af308-ede4-4895-9abe-e0d510dbe2ab",
+      "name": "Check for out of hours reservations2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $input.all().map(i => i.json);\nreturn [\n  {\n    json: (() => {\n      const outOfHoursReservations = [];\n      const withinHoursReservations = [];\n      let hour;\n      \n      for (const reservation of inputData) {\n\n        // fresh resrvations comes with UTC while edited are in Europe/Warsaw Tz ]:\n        const isWarsawWinterTz = reservation.endDate.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\+01:00$/);\n        const endDate = new Date(reservation.endDate);\n        \n        \n        if(isWarsawWinterTz) {\n          hour = endDate.getUTCHours() + 1;\n        } else {\n          hour = endDate.getUTCHours() + 2;\n        }\n       \n        const minutes = endDate.getUTCMinutes();\n\n        const isOutsideWorkingHours = hour > 17 || (hour === 17 && minutes > 0);\n\n        if (isOutsideWorkingHours) {\n          outOfHoursReservations.push(reservation);\n        } else {\n          withinHoursReservations.push(reservation);\n        } \n      }\n\n      return {\n        outOfHoursReservations,\n        withinHoursReservations,\n      };\n    })()\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        416
+      ],
+      "id": "12799417-d8b2-460d-8c33-5e853c50b68c",
+      "name": "Reservation Splitter2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n JavaScript Code Node\nconst input = $input.first().json\n\nif (input.withinHoursReservations.length < 0) {\n  return [];\n}\n\nconst {withinHoursReservations} = input;\nconst TICKS_PER_MILLISECOND = 10000;\nconst EPOCH_TICKS_AT_UNIX_EPOCH = 621355968000000000;\n\nfunction convertToUnixEpochWarsaw(isoDateString) {\n\tif (!isoDateString) return null;\n\ttry {\n\t\tconst date = new Date(isoDateString);\n\t\tif (isNaN(date.getTime())) return null;\n\t\t\n\t\t// Convert to Warsaw time\n\t\tconst formatter = new Intl.DateTimeFormat('pl-PL', {\n\t\t\ttimeZone: 'Europe/Warsaw',\n\t\t\tyear: 'numeric',\n\t\t\tmonth: '2-digit',\n\t\t\tday: '2-digit',\n\t\t\thour: '2-digit',\n\t\t\tminute: '2-digit',\n\t\t\tsecond: '2-digit',\n\t\t});\n\t\t\n\t\tconst parts = formatter.formatToParts(date).reduce((acc, part) => {\n\t\t\tacc[part.type] = part.value;\n\t\t\treturn acc;\n\t\t}, {});\n\t\t\n\t\t// Construct datetime and interpret as UTC (add 'Z')\n\t\t// This preserves the Warsaw wall-clock time\n\t\tconst warsawDateString = `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}Z`;\n\t\tconst warsawDate = new Date(warsawDateString);\n\t\t\n\t\tconsole.log(warsawDateString, warsawDate.getTime());\n\t\treturn warsawDate.getTime() * TICKS_PER_MILLISECOND + EPOCH_TICKS_AT_UNIX_EPOCH;\n\t} catch (error) {\n\t\tconsole.warn(`Failed Warsaw conversion for ${isoDateString}`, error);\n\t\treturn null;\n\t}\n}\n\nfunction parseEvent(event) {\n\treturn {\n\t\twoReservationId: event.id || null,\n\t\tphoneNumber: event.phoneNumber || null,\n\t\tlicencePlate: event.licencePlate || null,\n\t\tstartDate: convertToUnixEpochWarsaw(event.startDate),\n\t\tendDate: convertToUnixEpochWarsaw(event.endDate),\n        redisValue: event.redisValue,\n\t};\n}\n\nconst output = withinHoursReservations.map((item) => parseEvent(item)) || [];\n\nreturn [{\n  json: {\n    debug_mode: false,\n    reservations: output.map(item => item)\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        416
+      ],
+      "id": "085195b2-9419-4c56-abcd-0afc13267ad5",
+      "name": "Prepare data for Oponeo2"
+    },
+    {
+      "parameters": {
+        "fromEmail": "calendar-syncer@digito.pl",
+        "toEmail": "hurt@digito.com.pl",
+        "subject": "❌ Synchronizacja kalendarzy nie powiodła się",
+        "html": "={{(() => {\n  const data = $json;\n  const from = DateTime.fromISO(data.startDate).setLocale('pl').toFormat('d LLLL yyyy, HH:mm');\n  const to = DateTime.fromISO(data.endDate).setLocale('pl').toFormat('d LLLL yyyy, HH:mm');\n  const reservationId = (data.notes || '').split('/').pop();\n\n  return `\n    <div style=\"max-width:600px; margin:auto; font-family:Arial,sans-serif; background:#ffffff; border-radius:10px; padding:24px; border:1px solid #e0e0e0; color:#333333; box-shadow:0 2px 6px rgba(0,0,0,0.05);\">\n      <div style=\"text-align:center; margin-bottom:24px;\">\n        <img src=\"https://blinksoft.pl/assets/opony.png\" alt=\"Logo\" style=\"max-width:50px; height:auto;\" />\n      </div>\n\n      <p style=\"text-align:center; font-size:15px; margin-bottom:30px;\">Godzina <strong>Do</strong> wykracza poza normalne godziny pracy:</p>\n\n      <table cellpadding=\"10\" cellspacing=\"0\" style=\"width:100%; font-size:15px; border-collapse:collapse;\">\n        <tr>\n          <td style=\"font-weight:bold; width:40%;\">Termin:</td>\n          <td>\n            • Od: ${from}<br/>\n            • Do: ${to}\n          </td>\n        </tr>\n        <tr>\n          <td style=\"font-weight:bold;\">Numer rejestracyjny:</td>\n          <td>${data.licencePlate || 'Brak'}</td>\n        </tr>\n        <tr>\n          <td style=\"font-weight:bold;\">Telefon:</td>\n          <td>${data.prefix || ''} ${data.phoneNumber || 'Brak'}</td>\n        </tr>\n        <tr>\n          <td style=\"font-weight:bold;\">Edytuj rezerwację:</td>\n          <td><a href=\"https://serwis.wymianaopon.pl/zaplanowane\" style=\"color:#0d6efd;\" target=\"_blank\">Kliknij tutaj</a></td>\n        </tr>\n      </table>\n    </div>\n  `;\n})()}}\n"
+      },
+      "type": "n8n-nodes-base.mailgun",
+      "typeVersion": 1,
+      "position": [
+        528,
+        592
+      ],
+      "id": "04f1532e-15ad-4c92-a062-32b82a5f9748",
+      "name": "Mailgun1",
+      "credentials": {
+        "mailgunApi": {
+          "id": "DP8x4bkOkqC4r6ZA",
+          "name": "Mailgun account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C090JGLJ4VC",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={\n  \"blocks\": [\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*❌ Synchronizacja dla poniższej rezerwacji nie powiodła się, godzina 'Do' wykracza poza normalne godziny pracy:*\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Termin:*\\n• Od: {{ DateTime.fromISO($json.startDate).setLocale('pl').toFormat('d LLLL yyyy, HH:mm') }}\\n• Do: {{ DateTime.fromISO($json.endDate).setLocale('pl').toFormat('d LLLL yyyy, HH:mm') }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Nr rejestracyjny:*\\n{{ $json.licencePlate || 'Brak' }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Telefon:*\\n{{ $json.prefix || '' }} {{ $json.phoneNumber || 'Brak' }}\"\n        }\n      ]\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"\\n<https://serwis.wymianaopon.pl/zaplanowane|Edytuj rezerwację bezpośrednio w WO>\"\n      }\n    },\n    {\n      \"type\": \"divider\"\n    }\n  ]\n}\n",
+        "text": "={{ $json }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "link_names": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        528,
+        832
+      ],
+      "id": "696a0c77-95df-4e20-91e8-41095a849033",
+      "name": "OutOfHours Alert1",
+      "webhookId": "ef236322-8cac-4f69-b863-e93223accb51",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "IhlDCYvHCoWOgjgk",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "SOK21az9PvOJuVYU",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/SOK21az9PvOJuVYU",
+          "cachedResultName": "syncer: OPONEO => WO"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -816,
+        1072
+      ],
+      "id": "006e12cb-d2f5-4c0d-a595-5e9e6bc9d9a0",
+      "name": "OPONEO => WO"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 96,
+        "width": 560,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        640,
+        160
+      ],
+      "id": "96896324-9a10-4075-be60-dc0aaddb080c",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 96,
+        "width": 560,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        624,
+        592
+      ],
+      "id": "8f8ec643-2513-43ab-9227-99ed5e5566c3",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 96,
+        "width": 560,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1552,
+        416
+      ],
+      "id": "7d9bf505-7403-4bb0-a2db-1bf08011d02a",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 96,
+        "width": 560,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -368,
+        176
+      ],
+      "id": "96046d33-2786-4e69-8a2e-69eb9971e0c0",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 96,
+        "width": 560,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -368,
+        -32
+      ],
+      "id": "f0a09ac0-b1ed-40fd-9849-590b5b5ec492",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 96,
+        "width": 560,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        624,
+        832
+      ],
+      "id": "346e6b1c-5d1a-4f90-a1c6-0e33bc51728b",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "url": "http://sync-service:3001/wo/events?filter_by=date_from",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1440,
+        400
+      ],
+      "id": "dcd08d4c-2a89-464f-8141-6f37732db53c",
+      "name": "Get WO Events (date_from)"
+    },
+    {
+      "parameters": {
+        "url": "http://sync-service:3001/wo/events?filter_by=updated_at_from",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1152,
+        400
+      ],
+      "id": "18ca4b71-2f33-4d37-bc07-98fb6385f971",
+      "name": "Get WO Events (updated_at_from)"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8-13 * * 6"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1728,
+        656
+      ],
+      "id": "53783cbd-347e-4e2b-8c5b-a02fb494030e",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "content": "Every hour, between 08:00 AM and 05:59 PM, Monday through Friday",
+        "height": 208,
+        "width": 224
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1840,
+        304
+      ],
+      "id": "6fee4301-73bf-413b-a291-4d12eacd88fd",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "\nEvery hour, between 08:00 AM and 01:59 PM, only on Saturday",
+        "height": 208,
+        "width": 224
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1840,
+        560
+      ],
+      "id": "33fda9ef-f2bf-4bb5-a864-506033560cf8",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8-17 * * 1-5"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1728,
+        400
+      ],
+      "id": "b03df2fd-0a52-42f6-9859-766006487d43",
+      "name": "Schedule Trigger1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 23 * * 1-6"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1728,
+        144
+      ],
+      "id": "a35666f9-3039-4dd2-a7ad-c6d1b59dce65",
+      "name": "Schedule Trigger2"
+    },
+    {
+      "parameters": {
+        "content": "At 11:00 PM, Monday through Saturday",
+        "height": 208,
+        "width": 224
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1840,
+        48
+      ],
+      "id": "698866e8-1824-442f-9870-6ae0b099727f",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "jsCode": "const [woEvents] = $items(\"Get WO Events (date_from)\", 0).map(item => item.json);\nconst redisRecordsArray = $items(\"Current Redis Records\", 0).map(item => item.json)[0];\n\n// Convert Redis object to array\nconst redisRecords = Object.entries(redisRecordsArray || {}).map(([key, value]) => {\n  try {\n    const data = JSON.parse(value);\n    data.wo_id = +key.split(\":\")[1];\n    return data;\n  } catch (e) {\n    return null;\n  }\n}).filter(Boolean);\n\nconst deletes = [];\nconst now = new Date();\nconst fiveMinutesInMs = 5 * 60 * 1000;\n\nfor (const rec of redisRecords) {\n  const foundWO = woEvents.data.items.find(e => e.id === rec.wo_id);\n  \n  if (!foundWO) {\n    const startTime = new Date(rec.startTime);\n    const timeDiff = Math.abs(startTime - now);\n    \n    // Only delete if startTime is NOT within 5 minutes of now (either before or after)\n    if (timeDiff > fiveMinutesInMs) {\n      deletes.push({ \n        woId: rec.wo_id,\n        oponeoReservationId: rec.oponeoReservationId, \n      });\n    }\n  }\n}\n\nreturn deletes;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -672,
+        64
+      ],
+      "id": "8750047a-fb54-4c75-ac4d-7783ebb64716",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Current Redis Records": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mutator": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge results": {
+      "main": [
+        [
+          {
+            "node": "Reservation Splitter2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Obliterator1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Redis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis": {
+      "main": [
+        [
+          {
+            "node": "Merge results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Split Out1": {
+      "main": [
+        [
+          {
+            "node": "Merge results",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "Redis5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reservation Splitter2": {
+      "main": [
+        [
+          {
+            "node": "Check for out of hours reservations2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare data for Oponeo2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare data for Oponeo2": {
+      "main": [
+        [
+          {
+            "node": "Mutator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for out of hours reservations2": {
+      "main": [
+        [
+          {
+            "node": "Mailgun1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "OutOfHours Alert1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get WO Events (date_from)": {
+      "main": [
+        [
+          {
+            "node": "Get WO Events (updated_at_from)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Current Redis Records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get WO Events (updated_at_from)": {
+      "main": [
+        [
+          {
+            "node": "Split Out1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "OPONEO => WO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get WO Events (date_from)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Get WO Events (date_from)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger2": {
+      "main": [
+        [
+          {
+            "node": "Get WO Events (date_from)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Obliterator",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Redis4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "wyMQEsPdz8ZJyqet"
+  },
+  "versionId": "29c779dd-4764-406d-8f07-2cf5ad145c66",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1eaeb0eb56fd7cf5f0162cff3cf1f5b726fe65ce5f300e24367b22444c7ab515"
+  },
+  "id": "pwnEMJ9BAop7Q2jL",
+  "tags": []
+}

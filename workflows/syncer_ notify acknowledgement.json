@@ -1,0 +1,475 @@
+{
+  "name": "syncer: notify acknowledgement",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const payloadStr = $input.first().json.body.payload;\n\n// Parse it into a proper object\nconst payload = JSON.parse(payloadStr);\nconsole.log(payload.response_url)\nconst reservationId = payload.actions[0].value;\nconst messageTs = payload.container.message_ts;\nreturn [\n  {\n    json: {\n      reservationId,\n      messageTs,\n      slack_response_url: payload.response_url\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1536,
+        528
+      ],
+      "id": "2a62a5e7-2055-4fdf-be18-08f74c180369",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "=reservation",
+        "key": "=OPONEO:{{ $json.reservationId }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1312,
+        384
+      ],
+      "id": "bc4be854-349a-4906-847b-5b3e77bce800",
+      "name": "Redis",
+      "credentials": {
+        "redis": {
+          "id": "HDbs663OT229v1Sy",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = JSON.parse($input.first().json.reservation); // \n\ndata.notification_status = \"resolved\"; // Update the field\nconst reservationId = data.notes.oponeo_url.split('/').pop();\n\nreturn [\n  {\n    json: {\n      reservationId,\n      updatedValue: JSON.stringify(data),\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1088,
+        384
+      ],
+      "id": "a137dddc-570e-4366-967a-33f3dedfad83",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "36a20985-719e-4cd1-ae46-69a050f044ea",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1760,
+        528
+      ],
+      "id": "3adbcb39-d764-4c42-914c-b2b912c51d7e",
+      "name": "Webhook1",
+      "webhookId": "36a20985-719e-4cd1-ae46-69a050f044ea"
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=OPONEO:{{ $json.reservationId }}",
+        "value": "={{ $json.updatedValue }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        384
+      ],
+      "id": "4610ea66-9932-417e-885f-97db8668351d",
+      "name": "Redis3",
+      "credentials": {
+        "redis": {
+          "id": "HDbs663OT229v1Sy",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "mergeByIndex"
+      },
+      "name": "Merge results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        512
+      ],
+      "id": "6c768b1a-7c6a-462e-977f-c37882af6d40"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.update",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SLACK_BOT_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"ts\": \"{{ $json.messageTs }}\",\n  \"channel\": \"C090JGLJ4VC\",\n  \"text\": \":white_check_mark: Rezerwacja została odhaczona!\",\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"✅ Rezerwacja Odhaczona\",\n        \"emoji\": true\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Szczegóły rezerwacji* \\n🔗https://autoserwis.oponeo.pl/rezerwacja/{{ $json.reservationId }}\"\n      }\n    }\n  ]\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -320,
+        512
+      ],
+      "id": "0e4b807f-ddac-4c75-b4a1-af9ac34e3258",
+      "name": "confirm via slack new api"
+    },
+    {
+      "parameters": {
+        "path": "74730634-b4fb-4598-ab88-7d37e98ab843",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1760,
+        96
+      ],
+      "id": "0537d358-3e90-4747-9a4f-a34ec6d368b0",
+      "name": "Webhook",
+      "webhookId": "74730634-b4fb-4598-ab88-7d37e98ab843"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [
+        -208,
+        96
+      ],
+      "id": "8ab73f12-1cde-4394-a227-a32fcf266a6f",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      body: `\n        <!DOCTYPE html>\n        <html lang=\"pl\">\n        <head>\n          <meta charset=\"UTF-8\">\n          <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n          <title>Rezerwacja Odhaczona</title>\n          <style>\n            body {\n              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n              background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);\n              margin: 0;\n              padding: 0;\n              display: flex;\n              justify-content: center;\n              align-items: center;\n              height: 100vh;\n              color: #2c3e50;\n            }\n\n            .container {\n              background-color: #ffffff;\n              padding: 50px 40px;\n              border-radius: 12px;\n              box-shadow: 0 12px 30px rgba(0,0,0,0.1);\n              text-align: center;\n              max-width: 280px;\n              width: 90%;\n            }\n\n            .logo {\n              margin-bottom: 24px;\n            }\n\n            .logo img {\n              max-width: 60px;\n              height: auto;\n            }\n\n            h3 {\n              color: #27ae60;\n            }\n\n            p {\n              font-size: 1.1em;\n              color: #555555;\n              margin-bottom: 30px;\n            }\n\n            a.button {\n              background-color: #3498db;\n              color: #ffffff;\n              padding: 14px 28px;\n              border-radius: 8px;\n              text-decoration: none;\n              font-weight: bold;\n              font-size: 1em;\n              transition: background-color 0.3s ease, transform 0.2s ease;\n              display: inline-block;\n            }\n\n            a.button:hover {\n              background-color: #2980b9;\n              transform: translateY(-2px);\n            }\n\n            .footer {\n              margin-top: 40px;\n              font-size: 0.9em;\n              color: #888888;\n            }\n          </style>\n        </head>\n        <body>\n          <div class=\"container\">\n            <div class=\"logo\">\n              <img src=\"https://blinksoft.pl/assets/opony.png\" alt=\"Logo\">\n            </div>\n            <h3>Sukces!</h3>\n            <p>Rezerwacja została pomyślnie odhaczona.</p>\n            <div class=\"footer\">Nie będziesz więcej dostawał notyfikacji na temat tej rezerwacji</div>\n          </div>\n        </body>\n        </html>\n      `\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        192
+      ],
+      "id": "6eea79d6-a0ba-45f5-b11e-6c785c40d06c",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "=reservation",
+        "key": "=OPONEO:{{ $json.reservationId }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1312,
+        96
+      ],
+      "id": "560d3cb3-c109-4229-bd8e-599f5edb04a3",
+      "name": "Redis1",
+      "credentials": {
+        "redis": {
+          "id": "HDbs663OT229v1Sy",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = JSON.parse($input.first().json.reservation); // Redis returns stringified JSON\n\n// If already resolved, return early and tag it\nif (data.notification_status === \"resolved\") {\n  return [\n    {\n      json: {\n        reservationId: data.notes.oponeo_url.split('/').pop(),\n        alreadyResolved: true\n      }\n    }\n  ];\n}\n\n// Otherwise update and return\ndata.notification_status = \"resolved\";\nconst reservationId = data.notes.oponeo_url.split('/').pop();\n\nreturn [\n  {\n    json: {\n      reservationId,\n      updatedValue: JSON.stringify(data),\n      alreadyResolved: false\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1088,
+        96
+      ],
+      "id": "7014b89a-aca5-41a8-9a6a-3b3549f469fe",
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=OPONEO:{{ $json.reservationId }}",
+        "value": "={{ $json.updatedValue }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        192
+      ],
+      "id": "3bdb56f3-421f-492e-be05-b32c480f418c",
+      "name": "Redis4",
+      "credentials": {
+        "redis": {
+          "id": "HDbs663OT229v1Sy",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      reservationId: $json.query.reservationId\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1536,
+        96
+      ],
+      "id": "e5c67e47-6bd4-4411-b0df-8ffdb396f526",
+      "name": "Code4"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a17bb102-368e-4474-ad2c-738900652685",
+              "leftValue": "={{ $json.alreadyResolved }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -880,
+        96
+      ],
+      "id": "c3dcb6d8-f5aa-4957-9ef3-9d44e262f7c1",
+      "name": "Check if already resolved"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      body: `\n        <!DOCTYPE html>\n        <html lang=\"pl\">\n        <head>\n          <meta charset=\"UTF-8\">\n          <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n          <title>Rezerwacja już odhaczona</title>\n          <style>\n            body {\n              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n              text-align: center;\n              margin: 0;\n              padding: 20px;\n              background: linear-gradient(135deg, #f5f7fa 0%, #d7dde8 100%);\n              display: flex;\n              justify-content: center;\n              align-items: center;\n              min-height: 100vh;\n              color: #2c3e50;\n            }\n            .container {\n              background: #ffffff;\n              padding: 50px 40px;\n              border-radius: 12px;\n              box-shadow: 0 12px 30px rgba(0,0,0,0.1);\n              max-width: 400px;\n              width: 100%;\n              box-sizing: border-box;\n            }\n            .logo {\n              margin-bottom: 24px;\n            }\n            .logo img {\n              max-width: 60px;\n              height: auto;\n            }\n            h3 {\n              font-weight: 700;\n              margin: 0 0 20px;\n              font-size: 1.3em;\n              color: #2c3e50;\n            }\n            .footer {\n              margin-top: 30px;\n              font-size: 0.9em;\n              color: #666666;\n              line-height: 1.4;\n            }\n          </style>\n        </head>\n        <body>\n          <div class=\"container\">\n            <div class=\"logo\">\n              <img src=\"https://blinksoft.pl/assets/opony.png\" alt=\"Logo\">\n            </div>\n            <h3>Rezerwacja już została wcześniej odhaczona</h3>\n            <div class=\"footer\">Nie będziesz więcej dostawał notyfikacji na temat tej rezerwacji</div>\n          </div>\n        </body>\n        </html>\n      `\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        -16
+      ],
+      "id": "93946ce5-659e-4a6d-abdd-b148a58e07bb",
+      "name": "Code5"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Redis",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Redis": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Redis3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis3": {
+      "main": [
+        [
+          {
+            "node": "Merge results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge results": {
+      "main": [
+        [
+          {
+            "node": "confirm via slack new api",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis1": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "Check if already resolved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis4": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code4": {
+      "main": [
+        [
+          {
+            "node": "Redis1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if already resolved": {
+      "main": [
+        [
+          {
+            "node": "Code5",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Redis4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code5": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "wyMQEsPdz8ZJyqet"
+  },
+  "versionId": "b9c2285e-d9a2-4feb-a8c5-c562d22272cb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1eaeb0eb56fd7cf5f0162cff3cf1f5b726fe65ce5f300e24367b22444c7ab515"
+  },
+  "id": "lJ36mFweINw3YFAz",
+  "tags": []
+}

@@ -1,0 +1,684 @@
+{
+  "name": "syncer: OPONEO => WO",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://sync-service:3001/oponeo/scraper",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "={{$env.OPONEO_EMAIL}}"
+            },
+            {
+              "name": "password",
+              "value": "={{$env.OPONEO_PASSWORD}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -80,
+        1008
+      ],
+      "id": "5bcb97d8-1656-4eb8-b3ce-08038b3b1478",
+      "name": "Scrape Oponeo1",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.wymianaopon.pl/api/events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.WO_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        512,
+        1152
+      ],
+      "id": "60d2a2a2-05a7-4094-81fb-fa1581406be4",
+      "name": "POST to WO calendar1",
+      "retryOnFail": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "mergeByIndex"
+      },
+      "name": "Merge results1",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        672,
+        1024
+      ],
+      "id": "37fe0364-9022-4672-a1f5-ec6a56553a0c"
+    },
+    {
+      "parameters": {
+        "content": "# **sync-calendars**\n\n## 1 · Schedule trigger\n- Cron: `*/15 * * * *` (every 15 min)  \n- Kicks off the entire sync loop.\n\n## 2 · Fetch Oponeo reservations\n- HTTP **POST** to local **`oponeo-scraper`** service.  \n- Auth with environment-supplied credentials.\n\n## 3 · Normalize data\n- **Code** node maps each booking to WymianaOpon’s schema.  \n- Converts timestamps to **Europe/Warsaw**, derives `fromDate` / `toDate`.\n\n## 4 · Upstream sync\n- HTTP **POST** → `https://api.wymianaopon.pl/api/events`.  \n\n## 5 · De-duplication logic\n- Extracts `reservationId` from Oponeo URL.  \n- **Redis** lookup: skip if already processed.  \n- *Switch* classifies state → `pending`, `resolved`, or `new_error`.\n\n## 6 · Alerting paths\n- **Slack** (channel `C08GS5XHR42`) with “📝 Odhaczona?” button.  \n- **HTML e-mail** to owner with one-click “✅ Odhacz” link.  \n- Both include full client/contact & time window.\n\n## 7 · State persistence\n- Writes/updates Redis with `notification_status`, guaranteeing alert idempotency.\n",
+        "height": 860,
+        "width": 900
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        80
+      ],
+      "id": "b44a11ff-2788-48bc-beba-a608ddd503b1",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "mode": "mergeByIndex"
+      },
+      "name": "Merge results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        624
+      ],
+      "id": "2652a634-24a2-499f-bba4-b7236bd98ceb"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "=reservation",
+        "key": "=OPONEO:{{ $json.reservationId }}",
+        "options": {
+          "dotNotation": true
+        }
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1072,
+        608
+      ],
+      "id": "856f1a82-0b2f-4d75-996d-03c988fcd56a",
+      "name": "Check if exists",
+      "credentials": {
+        "redis": {
+          "id": "HDbs663OT229v1Sy",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "mergeByKey",
+        "propertyName1": "reservationId",
+        "propertyName2": "reservationId"
+      },
+      "name": "Merge results2",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        1008
+      ],
+      "id": "caac33b6-c99f-464f-8403-318408fc428b"
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=OPONEO:{{ $json.reservationId }}",
+        "value": "={{ \n  JSON.stringify({\n    licencePlate: $json.licencePlate,\n    firstname: $json.firstname,\n    lastname: $json.lastname,\n    phone: $json.phone,\n    email: $json.email,\n    notes: $json.notes,\n    fromDate: $json.fromDate,\n    toDate: $json.toDate,\n    notification_status: \"pending\",\n  }) \n}}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        2256,
+        1008
+      ],
+      "id": "efa248ef-05a1-47f3-a1ba-e3ac7da039fd",
+      "name": "Redis1",
+      "credentials": {
+        "redis": {
+          "id": "HDbs663OT229v1Sy",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const reservation = JSON.parse($input.first().json.reservation);\n\n// Return the fields directly so they are available in the next node\nreturn [{ json: reservation }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        608
+      ],
+      "id": "c147a344-76f0-45de-9174-85152dc87858",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "3bec3317-fe9a-4b3a-8f4a-1474e386e10d",
+                    "leftValue": "={{(() => {\n  const reservation = JSON.parse($json.reservation);\n  return reservation.notification_status === 'resolved';\n})()}}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "31f8f4a2-aa0e-4cf1-8896-bdda238bac5b",
+                    "leftValue": "={{(() => {\n  const reservation = JSON.parse($json.reservation);\n  return reservation.notification_status === 'pending';\n})()}}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "054abd6e-015a-48ae-b826-09c10cce0179",
+                    "leftValue": "={{(() => {\n  const reservation = JSON.parse($json.reservation);\n  return !reservation && !!$json.error;\n})()}}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "7d59c735-e164-4c65-9477-d95e757ad45e",
+                    "leftValue": "={{(() => {\n  const reservation = JSON.parse($json.reservation);\n  return !reservation && !$json.error;\n})()}}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "allMatchingOutputs": false
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1552,
+        592
+      ],
+      "id": "0899b6ab-3fef-462e-b9e3-8e6ca9d0dfd3",
+      "name": "Notification Determinator"
+    },
+    {
+      "parameters": {
+        "mode": "mergeByKey",
+        "propertyName1": "reservationId",
+        "propertyName2": "reservationId"
+      },
+      "name": "Merge results3",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        1376,
+        880
+      ],
+      "id": "aa365b4e-eb87-4700-9132-9f6d0519405e"
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=OPONEO:{{ $json.reservationId }}",
+        "value": "={{ \n  JSON.stringify({\n    licencePlate: $json.licencePlate,\n    firstname: $json.firstname,\n    lastname: $json.lastname,\n    phone: $json.phone,\n    email: $json.email,\n    notes: $json.notes,\n    fromDate: $json.fromDate,\n    toDate: $json.toDate,\n    notification_status: \"resolved\",\n  }) \n}}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1584,
+        880
+      ],
+      "id": "bf061179-650a-4e93-beb5-be091b8a23b0",
+      "name": "Redis",
+      "credentials": {
+        "redis": {
+          "id": "HDbs663OT229v1Sy",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 0 - reservation acknowledged\n## 1 - reservation waiting for acknowledge (loop)\n## 2 - reservation waiting for acknowledge\n## 3 - reservation without conflict\n",
+        "height": 300,
+        "width": 360,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1552,
+        272
+      ],
+      "id": "65c8b32a-d20f-4999-b1c3-da24afca90ea",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cee47e86-9b51-40d4-bcd9-62d3f859df49",
+              "name": "reservationId",
+              "value": "={{ $json.notes.oponeo_url.split('/').pop() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        912,
+        1024
+      ],
+      "id": "d59e3c64-dc95-4ef1-ac0b-59879f9ca707",
+      "name": "Add reservationId"
+    },
+    {
+      "parameters": {
+        "jsCode": "function transform_to_wo_format(reservation) {\n    const reservation_details = reservation.details\n\tconst [start, end] = reservation_details.time.split(' - ');\n\n\tconst [day, month, year] = reservation_details.date.split('-').map(Number);\n\tconst [startHour, startMinute] = start.split(':').map(Number);\n\tconst [endHour, endMinute] = end.split(':').map(Number);\n\n\tconst local_start_date = new Date(year, month - 1, day, startHour, startMinute);\n\tconst local_end_date = new Date(year, month - 1, day, endHour, endMinute);\n    const start_date_time = new Date(\n      local_start_date.getTime() - local_start_date.getTimezoneOffset() * 60000);\n    const end_date_time = new Date(\n      local_end_date.getTime()   - local_end_date.getTimezoneOffset() * 60000);\n  \n\treturn {\n        type: '1',\n\t\tworkspace: 13096,\n        time: 30,\n\t\tlicencePlate: reservation_details.registration_number || 'OPONEO',\n\t\tfirstname: reservation_details.client_name.split(\" \")[0] || 'Brak informacji',\n\t\tlastname: reservation_details.client_name.split(\" \")[1] || 'Brak informacji',\n\t\tphone: reservation_details.phone.replace(/\\D/g, '') || 'Brak informacji',\n\t\temail: reservation_details.email || '',\n        category: 1,\n        notes: {\n          oponeo_url: reservation.reservation_url || 'Brak informacji',\n          description: reservation.details.description || 'Brak informacji',\n        },\n\t\tfromDate: start_date_time,\n\t\ttoDate: end_date_time,\n        reservationType: \"1\",\n\t};\n}\nconst inputData = $input.all().map(i => i.json);\n\nif(inputData[0].data.length === 0){\n  return [];\n}\n\nconst transformed_data = [];\n\nfor (const reservation of inputData[0].data) {\n  transformed_data.push(transform_to_wo_format(reservation));\n}\n\nreturn transformed_data.map(item => ({ json: item }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        1008
+      ],
+      "id": "fed26001-fed7-409c-b01d-e62657f9c52f",
+      "name": "Prepare data for WO"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4bf10bb5-782f-40ce-b82d-90051f41a45f",
+              "name": "notes",
+              "value": "={{ $json.notes.description }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": "={{ true }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        320,
+        1152
+      ],
+      "id": "2832c075-2f24-4f23-b0cc-78e1243fb6d2",
+      "name": "Take only desc from notes"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C090JGLJ4VC",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={\n  \"blocks\": [\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*⚠️ Konflikt rezerwacji na Oponeo!*\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Klient:*\\n{{ $json.firstname }} {{ $json.lastname }}\\n{{ $json.email }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Termin:*\\n• Od: {{ DateTime.fromISO($json.fromDate).setZone('utc').setLocale('pl').toFormat('d LLLL yyyy, HH:mm') }}\\n• Do: {{ DateTime.fromISO($json.toDate).setZone('utc').setLocale('pl').toFormat('d LLLL yyyy, HH:mm') }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Nr rejestracyjny:*\\n{{ $json.licencePlate }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Nr telefonu:*\\n{{ $json.phone }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Oponeo link:*\\n<{{ $json.notes.oponeo_url }}|Kliknij tutaj>\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*WO wolne terminy:*\\n<https://serwis.wymianaopon.pl/dostepne|Kliknij tutaj>\"\n        }\n      ]\n    },\n    {\n      \"type\": \"divider\"\n    },\n    {\n      \"type\": \"actions\",\n      \"elements\": [\n       {\n        \"type\": \"button\",\n        \"action_id\": \"delete_reservation\",\n        \"text\": {\n          \"type\": \"plain_text\",\n          \"text\": \"📝 Odhaczona?\"\n        },\n        \"value\": \"{{ $json.notes.oponeo_url.split('/').pop() }}\",\n        \"confirm\": {\n          \"title\": {\n            \"type\": \"plain_text\",\n            \"text\": \"Potwierdzenie\"\n          },\n          \"text\": {\n            \"type\": \"mrkdwn\",\n            \"text\": \"Czy na pewno chcesz oznaczyć tę rezerwację jako odhaczoną?\"\n          },\n          \"confirm\": {\n            \"type\": \"plain_text\",\n            \"text\": \"Odhacz\"\n          },\n          \"deny\": {\n            \"type\": \"plain_text\",\n            \"text\": \"Anuluj\"\n          }\n  }\n}\n      ]\n    }\n  ]\n}\n",
+        "text": "={{ $json }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "link_names": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        2464,
+        800
+      ],
+      "id": "a86354ea-63e1-4f99-a178-d56f546ab3b6",
+      "name": "Conflict alert",
+      "webhookId": "ef236322-8cac-4f69-b863-e93223accb51",
+      "credentials": {
+        "slackApi": {
+          "id": "xhNxDQ0tM4kaOaG6",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "calendar-syncer@digito.pl",
+        "toEmail": "hurt@digito.com.pl",
+        "subject": "Konflikt rezerwacji na Oponeo!",
+        "html": "={{(() => {\n  const data = $json;\n\n  // Format Polish date range\n  const from = DateTime.fromISO(data.fromDate).setZone('utc').setLocale('pl').toFormat('d LLLL yyyy, HH:mm');\n  const to = DateTime.fromISO(data.toDate).setZone('utc').setLocale('pl').toFormat('d LLLL yyyy, HH:mm');\n\n  // Get reservation ID from URL\n  const reservationId = data.notes.oponeo_url.split('/').pop();\n\n  return `\n    <div style=\"max-width:600px; margin:auto; font-family:Arial,sans-serif; background:#ffffff; border-radius:10px; padding:24px; border:1px solid #e0e0e0; color:#333333; box-shadow:0 2px 6px rgba(0,0,0,0.05);\">\n      <h2 style=\"text-align:center; color: #000000;\">⚠️ Konflikt rezerwacji Oponeo!</h2>\n      \n      <table cellpadding=\"10\" cellspacing=\"0\" style=\"width:100%; font-size:15px; border-collapse:collapse;\">\n        <tr>\n          <td style=\"font-weight:bold; width:40%;\">Imię:</td>\n          <td>${data.firstname}</td>\n        </tr>\n        <tr>\n          <td style=\"font-weight:bold;\">Nazwisko:</td>\n          <td>${data.lastname}</td>\n        </tr>\n        <tr>\n          <td style=\"font-weight:bold;\">Numer Rejestracyjny:</td>\n          <td>${data.licencePlate}</td>\n        </tr>\n        <tr>\n          <td style=\"font-weight:bold;\">Telefon:</td>\n          <td>${data.phone}</td>\n        </tr>\n        <tr>\n          <td style=\"font-weight:bold;\">Email:</td>\n          <td>${data.email || 'Brak informacji'}</td>\n        </tr>\n        <tr>\n          <td style=\"font-weight:bold;\">Data:</td>\n          <td>${from} – ${to}</td>\n        </tr>\n        <tr>\n          <td style=\"font-weight:bold;\">Oponeo link:</td>\n          <td><a href=\"${data.notes.oponeo_url}\" style=\"color:#0d6efd;\" target=\"_blank\">Kliknij tutaj</a></td>\n        </tr>\n        <tr>\n          <td style=\"font-weight:bold;\">WO wolne terminy:</td>\n          <td><a href=\"https://serwis.wymianaopon.pl/dostepne\" style=\"color:#0d6efd;\" target=\"_blank\">Kliknij tutaj</a></td>\n        </tr>\n      </table>\n      <div style=\"text-align:center; margin-top:30px;\">\n        <a href=\"https://own9n.tojest.dev/webhook/74730634-b4fb-4598-ab88-7d37e98ab843?reservationId=${reservationId}\" \n           target=\"_blank\"\n           style=\"background-color:#198754; color:#ffffff; padding:14px 28px; text-decoration:none; font-weight:bold; border-radius:6px; display:inline-block; font-size:16px;\">\n          ✅ Odhacz\n        </a>\n      </div>\n      <p style=\"font-size:12px; color:#777; margin-top:20px; text-align:center;\">\n         Aby więcej nie dostawać notyfikacji na temat tej rezerwacji.\n      </p>\n    </div>\n  `;\n})()}}\n"
+      },
+      "type": "n8n-nodes-base.mailgun",
+      "typeVersion": 1,
+      "position": [
+        2784,
+        800
+      ],
+      "id": "1e9f6e01-b4fc-4fc1-a99d-c5ae7ab2a66d",
+      "name": "Mailgun",
+      "credentials": {
+        "mailgunApi": {
+          "id": "DP8x4bkOkqC4r6ZA",
+          "name": "Mailgun account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -336,
+        1008
+      ],
+      "id": "0811e64e-2d84-48b0-85c9-ad14ae5df2bd",
+      "name": "When Executed by Another Workflow"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Scrape Oponeo1": {
+      "main": [
+        [
+          {
+            "node": "Prepare data for WO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST to WO calendar1": {
+      "main": [
+        [
+          {
+            "node": "Merge results1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge results1": {
+      "main": [
+        [
+          {
+            "node": "Add reservationId",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge results": {
+      "main": [
+        [
+          {
+            "node": "Notification Determinator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if exists": {
+      "main": [
+        [
+          {
+            "node": "Merge results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge results2": {
+      "main": [
+        [
+          {
+            "node": "Redis1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Conflict alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mailgun",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis1": {
+      "main": [
+        [
+          {
+            "node": "Conflict alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mailgun",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notification Determinator": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge results2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge results3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge results3": {
+      "main": [
+        [
+          {
+            "node": "Redis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add reservationId": {
+      "main": [
+        [
+          {
+            "node": "Check if exists",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge results2",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Merge results",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Merge results3",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Prepare data for WO": {
+      "main": [
+        [
+          {
+            "node": "Merge results1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Take only desc from notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Take only desc from notes": {
+      "main": [
+        [
+          {
+            "node": "POST to WO calendar1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Scrape Oponeo1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "wyMQEsPdz8ZJyqet"
+  },
+  "versionId": "5d3f986d-8252-4763-995c-10ecafc32996",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1eaeb0eb56fd7cf5f0162cff3cf1f5b726fe65ce5f300e24367b22444c7ab515"
+  },
+  "id": "SOK21az9PvOJuVYU",
+  "tags": []
+}
