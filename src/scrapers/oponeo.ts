@@ -24,7 +24,10 @@ export async function authenticateOponeo(
 
 		await Promise.all([
 			page.click('a.button.enter', { timeout: 60000 }),
-			page.waitForURL(/.*/, { waitUntil: 'load', timeout: 60000 }),
+			page.waitForURL((url) => !url.pathname.includes('logowanie'), {
+				waitUntil: 'load',
+				timeout: 60000,
+			}),
 		]);
 
 		const currentUrl = page.url();
