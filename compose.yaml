@@ -29,9 +29,12 @@ services:
     ipc: host
     init: true
     environment:
+      WO_API_KEY: ${WO_API_KEY}
       OPONEO_LOGIN_URL: ${OPONEO_LOGIN_URL}
       OPONEO_RESERVATIONS_LIST_URL: ${OPONEO_RESERVATIONS_LIST_URL}
       OPONEO_BASE_URL: ${OPONEO_BASE_URL}
+      OPONEO_EMAIL: ${OPONEO_EMAIL}
+      OPONEO_PASSWORD: ${OPONEO_PASSWORD}
       PORT: ${PORT}
       WEBSHARE_ACCOUNT_1: ${WEBSHARE_ACCOUNT_1}
       WEBSHARE_ACCOUNT_2: ${WEBSHARE_ACCOUNT_2}
@@ -39,9 +42,6 @@ services:
       WEBSHARE_ACCOUNT_4: ${WEBSHARE_ACCOUNT_4}
       WEBSHARE_ACCOUNT_5: ${WEBSHARE_ACCOUNT_5}
       PROXY_BLACKLIST: ${PROXY_BLACKLIST}
-    volumes:
-      - ./:/app/
-      - /app/node_modules
   redis:
     image: redis:8-alpine
     restart: unless-stopped

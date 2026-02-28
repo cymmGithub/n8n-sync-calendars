@@ -1,10 +1,11 @@
-const { browserPool } = require('../../utils');
+import type { Browser, BrowserContext, Page } from 'playwright';
+import { browserPool } from '../../src/services/browser-pool.js';
 
 describe('BrowserPool Context Sharing Integration Tests', () => {
 	// Mock browser and context for testing
-	let mockBrowser;
-	let mockContext;
-	let mockPage;
+	let mockBrowser: Browser;
+	let mockContext: BrowserContext;
+	let mockPage: Page;
 
 	beforeEach(() => {
 		// Reset browser pool state
@@ -21,17 +22,17 @@ describe('BrowserPool Context Sharing Integration Tests', () => {
 			fill: jest.fn(),
 			click: jest.fn(),
 			url: jest.fn(() => 'https://example.com'),
-		};
+		} as unknown as Page;
 
 		mockContext = {
 			close: jest.fn(),
-			newPage: jest.fn(() => Promise.resolve(mockPage)),
-		};
+			newPage: jest.fn().mockResolvedValue(mockPage),
+		} as unknown as BrowserContext;
 
 		mockBrowser = {
 			close: jest.fn(),
-			newContext: jest.fn(() => Promise.resolve(mockContext)),
-		};
+			newContext: jest.fn().mockResolvedValue(mockContext),
+		} as unknown as Browser;
 	});
 
 	afterEach(async () => {
@@ -79,7 +80,8 @@ describe('BrowserPool Context Sharing Integration Tests', () => {
 
 		it('should not reuse stale context', async () => {
 			// Mock getBrowser to avoid proxy requirement when browser is stale
-			const getBrowserSpy = jest.spyOn(browserPool, 'getBrowser')
+			const getBrowserSpy = jest
+				.spyOn(browserPool, 'getBrowser')
 				.mockResolvedValue(mockBrowser);
 
 			// Set up browser and context
@@ -89,7 +91,7 @@ describe('BrowserPool Context Sharing Integration Tests', () => {
 			browserPool.isAuthenticated = true;
 
 			// Make context stale
-			browserPool.lastUsed = Date.now() - (6 * 60 * 1000); // 6 minutes ago
+			browserPool.lastUsed = Date.now() - 6 * 60 * 1000; // 6 minutes ago
 
 			// Second call - should create new context
 			const result2 = await browserPool.getContext(false);
@@ -209,7 +211,8 @@ describe('BrowserPool Context Sharing Integration Tests', () => {
 
 		it('should reset authentication state when creating new context', async () => {
 			// Mock getBrowser to avoid proxy requirement when browser is stale
-			const getBrowserSpy = jest.spyOn(browserPool, 'getBrowser')
+			const getBrowserSpy = jest
+				.spyOn(browserPool, 'getBrowser')
 				.mockResolvedValue(mockBrowser);
 
 			// Set up browser and context
@@ -219,7 +222,7 @@ describe('BrowserPool Context Sharing Integration Tests', () => {
 			browserPool.isAuthenticated = true;
 
 			// Make context stale
-			browserPool.lastUsed = Date.now() - (6 * 60 * 1000);
+			browserPool.lastUsed = Date.now() - 6 * 60 * 1000;
 
 			// Get context again (should create new one)
 			const result = await browserPool.getContext(false);
@@ -275,19 +278,18 @@ describe('BrowserPool Context Sharing Integration Tests', () => {
 			// Mock the browser creation
 			browserPool.browser = mockBrowser;
 
-			const time1 = Date.now();
 			await browserPool.getContext(false);
 			const firstUsed = browserPool.lastUsed;
 
 			await browserPool.releaseContext();
 
 			// Small delay
-			await new Promise(resolve => setTimeout(resolve, 10));
+			await new Promise((resolve) => setTimeout(resolve, 10));
 
 			await browserPool.getContext(false);
 			const secondUsed = browserPool.lastUsed;
 
-			expect(secondUsed).toBeGreaterThanOrEqual(firstUsed);
+			expect(secondUsed!).toBeGreaterThanOrEqual(firstUsed!);
 		});
 	});
 

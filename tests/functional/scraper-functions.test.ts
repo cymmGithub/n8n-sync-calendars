@@ -1,42 +1,43 @@
-const fs = require('fs');
-const path = require('path');
-const {
-	scrape_reservations_list,
-	scrape_reservation_details,
-} = require('../../utils');
+import fs from 'fs';
+import path from 'path';
+import type { Page } from 'playwright';
+import {
+	scrapeReservationsList,
+	scrapeReservationDetails,
+} from '../../src/scrapers/oponeo.js';
 
 // Load HTML fixtures
 const reservationListHTML = fs.readFileSync(
 	path.join(__dirname, '../fixtures/reservation-list.html'),
-	'utf-8'
+	'utf-8',
 );
 const reservationDetailHTML = fs.readFileSync(
 	path.join(__dirname, '../fixtures/reservation-detail.html'),
-	'utf-8'
+	'utf-8',
 );
 
 // Mock Playwright page object
-const createMockPage = (htmlContent) => ({
-	evaluate: jest.fn(async (fn) => {
-		// Create a DOM environment for the fixture
-		const { JSDOM } = require('jsdom');
-		const dom = new JSDOM(htmlContent, { runScripts: 'dangerously' });
+const createMockPage = (htmlContent: string) =>
+	({
+		evaluate: jest.fn(async (fn: () => unknown) => {
+			// Create a DOM environment for the fixture
+			const { JSDOM } = require('jsdom');
+			const dom = new JSDOM(htmlContent, { runScripts: 'dangerously' });
 
-		// Execute the function in the JSDOM window context
-		// We need to use runVMScript or execute in the context to make document available
-		const script = `(${fn.toString()})()`;
-		const result = dom.window.eval(script);
-		return result;
-	}),
-	goto: jest.fn(),
-});
+			// Execute the function in the JSDOM window context
+			const script = `(${fn.toString()})()`;
+			const result = dom.window.eval(script) as unknown;
+			return result;
+		}),
+		goto: jest.fn(),
+	}) as unknown as Page;
 
 describe('Scraper Functions', () => {
-	describe('scrape_reservations_list', () => {
+	describe('scrapeReservationsList', () => {
 		it('should extract reservations starting with R', async () => {
 			const mockPage = createMockPage(reservationListHTML);
 
-			const reservations = await scrape_reservations_list(mockPage);
+			const reservations = await scrapeReservationsList(mockPage);
 
 			expect(reservations).toHaveLength(3);
 			expect(reservations[0]).toMatchObject({
@@ -52,10 +53,10 @@ describe('Scraper Functions', () => {
 		it('should include KAKTUSXXX debug reservations', async () => {
 			const mockPage = createMockPage(reservationListHTML);
 
-			const reservations = await scrape_reservations_list(mockPage);
+			const reservations = await scrapeReservationsList(mockPage);
 
-			const kaktusReservation = reservations.find(r =>
-				r.reservation_number === 'R123458'
+			const kaktusReservation = reservations.find(
+				(r) => r.reservation_number === 'R123458',
 			);
 			expect(kaktusReservation).toBeDefined();
 		});
@@ -63,10 +64,10 @@ describe('Scraper Functions', () => {
 		it('should filter out reservations not starting with R', async () => {
 			const mockPage = createMockPage(reservationListHTML);
 
-			const reservations = await scrape_reservations_list(mockPage);
+			const reservations = await scrapeReservationsList(mockPage);
 
-			const wReservation = reservations.find(r =>
-				r.reservation_number === 'W999999'
+			const wReservation = reservations.find(
+				(r) => r.reservation_number === 'W999999',
 			);
 			expect(wReservation).toBeUndefined();
 		});
@@ -82,20 +83,22 @@ describe('Scraper Functions', () => {
 			`;
 			const mockPage = createMockPage(emptyHTML);
 
-			const reservations = await scrape_reservations_list(mockPage);
+			const reservations = await scrapeReservationsList(mockPage);
 
 			expect(reservations).toHaveLength(0);
 		});
 	});
 
-	describe('scrape_reservation_details', () => {
+	describe('scrapeReservationDetails', () => {
 		it('should extract all reservation details', async () => {
 			const mockPage = createMockPage(reservationDetailHTML);
 			const testUrl = 'https://autoserwis.oponeo.pl/rezerwacja/12345';
 
-			const details = await scrape_reservation_details(mockPage, testUrl);
+			const details = await scrapeReservationDetails(mockPage, testUrl);
 
-			expect(mockPage.goto).toHaveBeenCalledWith(testUrl, { waitUntil: 'load' });
+			expect(mockPage.goto).toHaveBeenCalledWith(testUrl, {
+				waitUntil: 'load',
+			});
 			expect(details).toMatchObject({
 				reservation_number: 'R123456',
 				date: '2025-01-15',
@@ -122,9 +125,9 @@ describe('Scraper Functions', () => {
 			`;
 			const mockPage = createMockPage(minimalHTML);
 
-			const details = await scrape_reservation_details(
+			const details = await scrapeReservationDetails(
 				mockPage,
-				'https://autoserwis.oponeo.pl/rezerwacja/12345'
+				'https://autoserwis.oponeo.pl/rezerwacja/12345',
 			);
 
 			expect(details.reservation_number).toBe('R123456');
@@ -136,16 +139,16 @@ describe('Scraper Functions', () => {
 	describe('Pagination Detection', () => {
 		it('should detect total pages from pager', async () => {
 			const mockPage = createMockPage(reservationListHTML);
-			mockPage.evaluate = jest.fn(async (fn) => {
+			mockPage.evaluate = jest.fn(async () => {
 				const { JSDOM } = require('jsdom');
 				const dom = new JSDOM(reservationListHTML);
 				const document = dom.window.document;
 
 				// Execute the pagination detection logic
-				const pager_items = Array.from(
+				const pager_items: Element[] = Array.from(
 					document.querySelectorAll(
-						'.pager li:not(:has(a[ajaxsubmit="NextPage"]))'
-					)
+						'.pager li:not(:has(a[ajaxsubmit="NextPage"]))',
+					),
 				);
 
 				if (pager_items.length === 0) {
@@ -153,18 +156,20 @@ describe('Scraper Functions', () => {
 				}
 
 				const last_page_item = pager_items
-					.filter((item) => /^\d+$/.test(item.textContent.trim()))
+					.filter((item: Element) =>
+						/^\d+$/.test(item.textContent?.trim() ?? ''),
+					)
 					.pop();
 
 				if (!last_page_item) {
 					return 1;
 				}
 
-				const page_text = last_page_item.textContent.trim();
+				const page_text = last_page_item.textContent?.trim() ?? '';
 				const page_number = parseInt(page_text) || 1;
 
 				return page_number;
-			});
+			}) as jest.Mock;
 
 			const totalPages = await mockPage.evaluate(() => {});
 			expect(totalPages).toBe(3);
@@ -191,18 +196,21 @@ describe('Scraper Functions', () => {
 				const dom = new JSDOM(singlePageHTML);
 				const document = dom.window.document;
 
-				const pager_items = Array.from(
+				const pager_items: Element[] = Array.from(
 					document.querySelectorAll(
-						'.pager li:not(:has(a[ajaxsubmit="NextPage"]))'
-					)
+						'.pager li:not(:has(a[ajaxsubmit="NextPage"]))',
+					),
 				);
 
 				if (pager_items.length === 0) {
 					return 1;
 				}
 
-				return parseInt(pager_items[pager_items.length - 1].textContent) || 1;
-			});
+				const lastItem = pager_items[pager_items.length - 1] as
+					| Element
+					| undefined;
+				return parseInt(lastItem?.textContent ?? '') || 1;
+			}) as jest.Mock;
 
 			const totalPages = await mockPage.evaluate(() => {});
 			expect(totalPages).toBe(1);
@@ -224,9 +232,9 @@ describe('Scraper Functions', () => {
 			`;
 			const mockPage = createMockPage(spacedHTML);
 
-			const details = await scrape_reservation_details(
+			const details = await scrapeReservationDetails(
 				mockPage,
-				'https://autoserwis.oponeo.pl/rezerwacja/12345'
+				'https://autoserwis.oponeo.pl/rezerwacja/12345',
 			);
 
 			// The trim() in the actual function should handle this
@@ -236,9 +244,9 @@ describe('Scraper Functions', () => {
 		it('should extract description from title-description pattern', async () => {
 			const mockPage = createMockPage(reservationDetailHTML);
 
-			const details = await scrape_reservation_details(
+			const details = await scrapeReservationDetails(
 				mockPage,
-				'https://autoserwis.oponeo.pl/rezerwacja/12345'
+				'https://autoserwis.oponeo.pl/rezerwacja/12345',
 			);
 
 			expect(details.description).toBe('4x Opony zimowe 205/55 R16');
