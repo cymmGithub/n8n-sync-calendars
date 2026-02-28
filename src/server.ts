@@ -25,13 +25,18 @@ const server = app.listen(env.PORT, () => {
 
 const shutdown = (): void => {
 	server.close((err) => {
-		console.log('Shutting down the server...');
 		if (err) {
 			console.error('Error during server shutdown:', err);
 			process.exitCode = 1;
 		}
 		process.exit();
 	});
+
+	// Force exit if graceful shutdown takes too long
+	setTimeout(() => {
+		console.error('Forced shutdown after timeout');
+		process.exit(1);
+	}, 5000).unref();
 };
 
 // quit on ctrl-c when running docker in terminal

@@ -29,6 +29,7 @@ services:
     ipc: host
     init: true
     environment:
+      WO_API_KEY: ${WO_API_KEY}
       OPONEO_LOGIN_URL: ${OPONEO_LOGIN_URL}
       OPONEO_RESERVATIONS_LIST_URL: ${OPONEO_RESERVATIONS_LIST_URL}
       OPONEO_BASE_URL: ${OPONEO_BASE_URL}
