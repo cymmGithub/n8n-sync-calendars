@@ -74,11 +74,9 @@ describe('WO Events Routes', () => {
 			global.fetch = jest.fn().mockResolvedValue({
 				ok: true,
 				json: async () => mockEventsData,
-			}) as jest.Mock;
+			});
 
-			const response = await request(app)
-				.get('/wo/events')
-				.expect(200);
+			const response = await request(app).get('/wo/events').expect(200);
 
 			expect(response.body.success).toBe(true);
 			expect(response.body.data).toEqual(mockEventsData);
@@ -117,11 +115,9 @@ describe('WO Events Routes', () => {
 			global.fetch = jest.fn().mockResolvedValue({
 				ok: true,
 				json: async () => [],
-			}) as jest.Mock;
+			});
 
-			await request(app)
-				.get('/wo/events?page=3&itemsPerPage=50')
-				.expect(200);
+			await request(app).get('/wo/events?page=3&itemsPerPage=50').expect(200);
 
 			const fetchUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
 			expect(fetchUrl).toContain('page=3');
@@ -135,11 +131,9 @@ describe('WO Events Routes', () => {
 				ok: false,
 				status: 401,
 				text: async () => 'Unauthorized',
-			}) as jest.Mock;
+			});
 
-			const response = await request(app)
-				.get('/wo/events')
-				.expect(401);
+			const response = await request(app).get('/wo/events').expect(401);
 
 			expect(response.body).toMatchObject({
 				success: false,
@@ -151,19 +145,14 @@ describe('WO Events Routes', () => {
 		it('should handle network errors', async () => {
 			process.env.WO_API_KEY = 'test-api-key';
 
-			global.fetch = jest
-				.fn()
-				.mockRejectedValue(new Error('Network error')) as jest.Mock;
+			global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
 
-			const response = await request(app)
-				.get('/wo/events')
-				.expect(500);
+			const response = await request(app).get('/wo/events').expect(500);
 
 			expect(response.body).toMatchObject({
 				success: false,
 				error: 'Network error',
-				details:
-					'An error occurred while fetching work order events',
+				details: 'An error occurred while fetching work order events',
 			});
 		});
 
@@ -173,11 +162,9 @@ describe('WO Events Routes', () => {
 			global.fetch = jest.fn().mockResolvedValue({
 				ok: true,
 				json: async () => [],
-			}) as jest.Mock;
+			});
 
-			const response = await request(app)
-				.get('/wo/events')
-				.expect(200);
+			const response = await request(app).get('/wo/events').expect(200);
 
 			expect(response.body.success).toBe(true);
 			expect(response.body.data).toEqual([]);
@@ -189,17 +176,13 @@ describe('WO Events Routes', () => {
 			global.fetch = jest.fn().mockResolvedValue({
 				ok: true,
 				json: async () => [],
-			}) as jest.Mock;
+			});
 
 			const beforeTime = new Date();
-			const response = await request(app)
-				.get('/wo/events')
-				.expect(200);
+			const response = await request(app).get('/wo/events').expect(200);
 			const afterTime = new Date();
 
-			const responseTimestamp = new Date(
-				response.body.metadata.timestamp,
-			);
+			const responseTimestamp = new Date(response.body.metadata.timestamp);
 			expect(responseTimestamp.getTime()).toBeGreaterThanOrEqual(
 				beforeTime.getTime(),
 			);
@@ -214,19 +197,15 @@ describe('WO Events Routes', () => {
 			global.fetch = jest.fn().mockResolvedValue({
 				ok: true,
 				json: async () => [],
-			}) as jest.Mock;
+			});
 
 			const response = await request(app)
 				.get('/wo/events?filter_by=date_from')
 				.expect(200);
 
 			// Verify metadata includes date_from
-			expect(response.body.metadata.parameters.date_from).toBe(
-				'2025-01-15',
-			);
-			expect(
-				response.body.metadata.parameters.updated_at_from,
-			).toBeUndefined();
+			expect(response.body.metadata.parameters.date_from).toBe('2025-01-15');
+			expect(response.body.metadata.parameters.updated_at_from).toBeUndefined();
 
 			// Verify URL includes date_from parameter
 			const fetchUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
@@ -240,19 +219,17 @@ describe('WO Events Routes', () => {
 			global.fetch = jest.fn().mockResolvedValue({
 				ok: true,
 				json: async () => [],
-			}) as jest.Mock;
+			});
 
 			const response = await request(app)
 				.get('/wo/events?filter_by=updated_at_from')
 				.expect(200);
 
 			// Verify metadata includes updated_at_from
-			expect(
-				response.body.metadata.parameters.updated_at_from,
-			).toBe('2025-01-15T00:00:00.000Z');
-			expect(
-				response.body.metadata.parameters.date_from,
-			).toBeUndefined();
+			expect(response.body.metadata.parameters.updated_at_from).toBe(
+				'2025-01-15T00:00:00.000Z',
+			);
+			expect(response.body.metadata.parameters.date_from).toBeUndefined();
 
 			// Verify URL includes updated_at_from parameter
 			const fetchUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
@@ -268,19 +245,13 @@ describe('WO Events Routes', () => {
 			global.fetch = jest.fn().mockResolvedValue({
 				ok: true,
 				json: async () => [],
-			}) as jest.Mock;
+			});
 
-			const response = await request(app)
-				.get('/wo/events')
-				.expect(200);
+			const response = await request(app).get('/wo/events').expect(200);
 
 			// Verify metadata does not include date filters
-			expect(
-				response.body.metadata.parameters.date_from,
-			).toBeUndefined();
-			expect(
-				response.body.metadata.parameters.updated_at_from,
-			).toBeUndefined();
+			expect(response.body.metadata.parameters.date_from).toBeUndefined();
+			expect(response.body.metadata.parameters.updated_at_from).toBeUndefined();
 
 			// Verify URL does not include date filter parameters
 			const fetchUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
@@ -294,19 +265,15 @@ describe('WO Events Routes', () => {
 			global.fetch = jest.fn().mockResolvedValue({
 				ok: true,
 				json: async () => [],
-			}) as jest.Mock;
+			});
 
 			const response = await request(app)
 				.get('/wo/events?filter_by=invalid_value')
 				.expect(200);
 
 			// Verify metadata does not include date filters
-			expect(
-				response.body.metadata.parameters.date_from,
-			).toBeUndefined();
-			expect(
-				response.body.metadata.parameters.updated_at_from,
-			).toBeUndefined();
+			expect(response.body.metadata.parameters.date_from).toBeUndefined();
+			expect(response.body.metadata.parameters.updated_at_from).toBeUndefined();
 
 			// Verify URL does not include date filter parameters
 			const fetchUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
@@ -320,7 +287,7 @@ describe('WO Events Routes', () => {
 			global.fetch = jest.fn().mockResolvedValue({
 				ok: true,
 				json: async () => [],
-			}) as jest.Mock;
+			});
 
 			const response = await request(app)
 				.get('/wo/events?page=2&itemsPerPage=50&filter_by=date_from')
@@ -329,9 +296,7 @@ describe('WO Events Routes', () => {
 			// Verify all parameters in metadata
 			expect(response.body.metadata.parameters.page).toBe(2);
 			expect(response.body.metadata.parameters.itemsPerPage).toBe(50);
-			expect(response.body.metadata.parameters.date_from).toBe(
-				'2025-01-15',
-			);
+			expect(response.body.metadata.parameters.date_from).toBe('2025-01-15');
 
 			// Verify URL includes all parameters
 			const fetchUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;

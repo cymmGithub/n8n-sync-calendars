@@ -80,7 +80,6 @@ describe('Date and Time Utilities', () => {
 			const result = getCurrentDateMidnight();
 			const now = new Date().toISOString();
 
-			const resultDate = new Date(result);
 			const nowDate = new Date(now);
 
 			// Unless we're exactly at midnight, these should be different
@@ -206,9 +205,7 @@ describe('Date and Time Utilities', () => {
 
 		it('should throw error for invalid ISO string', () => {
 			const invalidIsoString = 'not-a-date';
-			expect(() => isoToTicks(invalidIsoString)).toThrow(
-				'Invalid ISO string',
-			);
+			expect(() => isoToTicks(invalidIsoString)).toThrow('Invalid ISO string');
 		});
 
 		it('should be reversible with convertTicksToDate', () => {
@@ -240,9 +237,7 @@ describe('Date and Time Utilities', () => {
 		it('should return URL with current date as .NET ticks', () => {
 			const result = getReservationsFromNowUrl();
 
-			expect(result).toContain(
-				'https://autoserwis.oponeo.pl/reservations',
-			);
+			expect(result).toContain('https://autoserwis.oponeo.pl/reservations');
 			expect(result).toContain('?data-od=');
 		});
 
@@ -253,7 +248,7 @@ describe('Date and Time Utilities', () => {
 			expect(ticksMatch).not.toBeNull();
 			expect(ticksMatch![1]).toBeTruthy();
 
-			const ticks = BigInt(ticksMatch![1]!);
+			const ticks = BigInt(ticksMatch![1]);
 			expect(ticks > BigInt(EPOCH_TICKS_AT_UNIX_EPOCH)).toBe(true);
 		});
 
@@ -263,7 +258,7 @@ describe('Date and Time Utilities', () => {
 			const afterTime = Date.now();
 
 			const ticksMatch = result.match(/\?data-od=(\d+)/);
-			const ticks = BigInt(ticksMatch![1]!);
+			const ticks = BigInt(ticksMatch![1]);
 
 			// Convert ticks back to milliseconds
 			const msFromTicks = Number(
@@ -297,13 +292,10 @@ describe('Date and Time Utilities', () => {
 
 			// The isoToTicks function strips timezone and treats as local time
 			// So we need to account for timezone offset
-			const timezoneOffsetMs =
-				originalDate.getTimezoneOffset() * 60 * 1000;
+			const timezoneOffsetMs = originalDate.getTimezoneOffset() * 60 * 1000;
 			expect(
 				Math.abs(
-					convertedDate.getTime() -
-						originalDate.getTime() -
-						timezoneOffsetMs,
+					convertedDate.getTime() - originalDate.getTime() - timezoneOffsetMs,
 				),
 			).toBeLessThan(1000);
 		});
@@ -321,13 +313,10 @@ describe('Date and Time Utilities', () => {
 				const originalDate = new Date(dateStr);
 
 				// Account for timezone offset since isoToTicks treats as local time
-				const timezoneOffsetMs =
-					originalDate.getTimezoneOffset() * 60 * 1000;
+				const timezoneOffsetMs = originalDate.getTimezoneOffset() * 60 * 1000;
 				expect(
 					Math.abs(
-						dateBack.getTime() -
-							originalDate.getTime() -
-							timezoneOffsetMs,
+						dateBack.getTime() - originalDate.getTime() - timezoneOffsetMs,
 					),
 				).toBeLessThan(1000);
 			});

@@ -11,9 +11,9 @@ router.get('/events', async (req: Request, res: Response): Promise<void> => {
 		logger.info('Work order events endpoint called');
 
 		// Extract query parameters or use defaults
-		const page = (req.query['page'] as string) ?? '1';
+		const page = (req.query['page'] as string | undefined) ?? '1';
 		const itemsPerPage =
-			(req.query['itemsPerPage'] as string) ?? '100';
+			(req.query['itemsPerPage'] as string | undefined) ?? '100';
 
 		// Determine which date parameter to use based on 'filter_by' query parameter
 		let dateFrom: string | undefined;
@@ -39,9 +39,7 @@ router.get('/events', async (req: Request, res: Response): Promise<void> => {
 		}
 
 		// Build WO API URL with query parameters
-		const woApiUrl = new URL(
-			'https://api.wymianaopon.pl/api/events/planned',
-		);
+		const woApiUrl = new URL('https://api.wymianaopon.pl/api/events/planned');
 		woApiUrl.searchParams.set('page', page);
 		woApiUrl.searchParams.set('itemsPerPage', itemsPerPage);
 
@@ -102,17 +100,14 @@ router.get('/events', async (req: Request, res: Response): Promise<void> => {
 		});
 	} catch (error) {
 		logger.error('Error in work order events endpoint', {
-			error:
-				error instanceof Error ? error.message : 'Unknown error',
+			error: error instanceof Error ? error.message : 'Unknown error',
 			stack: error instanceof Error ? error.stack : undefined,
 		});
 
 		res.status(500).json({
 			success: false,
-			error:
-				error instanceof Error ? error.message : 'Unknown error',
-			details:
-				'An error occurred while fetching work order events',
+			error: error instanceof Error ? error.message : 'Unknown error',
+			details: 'An error occurred while fetching work order events',
 		});
 	}
 });

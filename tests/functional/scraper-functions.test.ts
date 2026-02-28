@@ -41,13 +41,11 @@ describe('Scraper Functions', () => {
 
 			expect(reservations).toHaveLength(3);
 			expect(reservations[0]).toMatchObject({
-				reservation_url:
-					'https://autoserwis.oponeo.pl/rezerwacja/12345',
+				reservation_url: 'https://autoserwis.oponeo.pl/rezerwacja/12345',
 				reservation_number: 'R123456',
 			});
 			expect(reservations[1]).toMatchObject({
-				reservation_url:
-					'https://autoserwis.oponeo.pl/rezerwacja/12346',
+				reservation_url: 'https://autoserwis.oponeo.pl/rezerwacja/12346',
 				reservation_number: 'R123457',
 			});
 		});
@@ -94,13 +92,9 @@ describe('Scraper Functions', () => {
 	describe('scrapeReservationDetails', () => {
 		it('should extract all reservation details', async () => {
 			const mockPage = createMockPage(reservationDetailHTML);
-			const testUrl =
-				'https://autoserwis.oponeo.pl/rezerwacja/12345';
+			const testUrl = 'https://autoserwis.oponeo.pl/rezerwacja/12345';
 
-			const details = await scrapeReservationDetails(
-				mockPage,
-				testUrl,
-			);
+			const details = await scrapeReservationDetails(mockPage, testUrl);
 
 			expect(mockPage.goto).toHaveBeenCalledWith(testUrl, {
 				waitUntil: 'load',
@@ -151,19 +145,19 @@ describe('Scraper Functions', () => {
 				const document = dom.window.document;
 
 				// Execute the pagination detection logic
-				const pager_items = Array.from(
+				const pager_items: Element[] = Array.from(
 					document.querySelectorAll(
 						'.pager li:not(:has(a[ajaxsubmit="NextPage"]))',
 					),
-				) as HTMLElement[];
+				);
 
 				if (pager_items.length === 0) {
 					return 1;
 				}
 
 				const last_page_item = pager_items
-					.filter((item: HTMLElement) =>
-						/^\d+$/.test(item.textContent!.trim()),
+					.filter((item: Element) =>
+						/^\d+$/.test(item.textContent?.trim() ?? ''),
 					)
 					.pop();
 
@@ -171,7 +165,7 @@ describe('Scraper Functions', () => {
 					return 1;
 				}
 
-				const page_text = last_page_item.textContent!.trim();
+				const page_text = last_page_item.textContent?.trim() ?? '';
 				const page_number = parseInt(page_text) || 1;
 
 				return page_number;
@@ -202,21 +196,20 @@ describe('Scraper Functions', () => {
 				const dom = new JSDOM(singlePageHTML);
 				const document = dom.window.document;
 
-				const pager_items = Array.from(
+				const pager_items: Element[] = Array.from(
 					document.querySelectorAll(
 						'.pager li:not(:has(a[ajaxsubmit="NextPage"]))',
 					),
-				) as HTMLElement[];
+				);
 
 				if (pager_items.length === 0) {
 					return 1;
 				}
 
-				return (
-					parseInt(
-						pager_items[pager_items.length - 1]!.textContent!,
-					) || 1
-				);
+				const lastItem = pager_items[pager_items.length - 1] as
+					| Element
+					| undefined;
+				return parseInt(lastItem?.textContent ?? '') || 1;
 			}) as jest.Mock;
 
 			const totalPages = await mockPage.evaluate(() => {});

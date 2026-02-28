@@ -3,9 +3,9 @@ import 'dotenv/config';
 
 const envSchema = z.object({
 	PORT: z.coerce.number().default(3001),
-	OPONEO_BASE_URL: z.string().url(),
-	OPONEO_LOGIN_URL: z.string().url(),
-	OPONEO_RESERVATIONS_LIST_URL: z.string().url(),
+	OPONEO_BASE_URL: z.url(),
+	OPONEO_LOGIN_URL: z.url(),
+	OPONEO_RESERVATIONS_LIST_URL: z.url(),
 	OPONEO_EMAIL: z.string().min(1),
 	OPONEO_PASSWORD: z.string().min(1),
 	WO_API_KEY: z.string().optional(),

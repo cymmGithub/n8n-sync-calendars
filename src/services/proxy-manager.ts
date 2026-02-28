@@ -93,7 +93,7 @@ export class ProxyManager {
 		}
 
 		// Check IP-only match (in case blacklist contains just IPs without ports)
-		const ip = ipPort.split(':')[0]!;
+		const ip = ipPort.split(':')[0];
 		if (this.blacklistedIPs.has(ip)) {
 			return true;
 		}
@@ -112,7 +112,7 @@ export class ProxyManager {
 					let data = '';
 
 					res.on('data', (chunk: Buffer) => {
-						data += chunk;
+						data += chunk.toString();
 					});
 
 					res.on('end', () => {
@@ -163,9 +163,7 @@ export class ProxyManager {
 
 			// Fetch from all available accounts in parallel
 			const fetchPromises = this.availableAccounts.map((accountNum) =>
-				this.fetchProxyList(
-					process.env[`WEBSHARE_ACCOUNT_${accountNum}`]!,
-				),
+				this.fetchProxyList(process.env[`WEBSHARE_ACCOUNT_${accountNum}`]!),
 			);
 
 			const dataList = await Promise.all(fetchPromises);
@@ -173,19 +171,15 @@ export class ProxyManager {
 			// Parse and store results for each account
 			const accountStats: string[] = [];
 			for (let i = 0; i < this.availableAccounts.length; i++) {
-				const accountNum = this.availableAccounts[i]!;
-				const parsed = this.parseProxyList(dataList[i]!);
+				const accountNum = this.availableAccounts[i];
+				const parsed = this.parseProxyList(dataList[i]);
 				this.proxyLists[`account${accountNum}`] = parsed;
-				accountStats.push(
-					`Account${accountNum}=${parsed.proxies.length} IPs`,
-				);
+				accountStats.push(`Account${accountNum}=${parsed.proxies.length} IPs`);
 			}
 
 			this.lastFetch = Date.now();
 
-			logger.info(
-				`Proxy lists refreshed: ${accountStats.join(', ')}`,
-			);
+			logger.info(`Proxy lists refreshed: ${accountStats.join(', ')}`);
 
 			return true;
 		} catch (error) {
@@ -193,11 +187,11 @@ export class ProxyManager {
 				`Failed to refresh proxy lists: ${error instanceof Error ? error.message : 'Unknown error'}`,
 			);
 			// If we have cached data, continue using it
-			const firstAccount = this.availableAccounts[0];
+			const firstAccount = this.availableAccounts[0] as number | undefined;
 			if (
-				firstAccount &&
-				(this.proxyLists[`account${firstAccount}`]?.proxies.length ??
-					0) > 0
+				firstAccount !== undefined &&
+				// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+				(this.proxyLists[`account${firstAccount}`]?.proxies.length ?? 0) > 0
 			) {
 				logger.warn('Using cached proxy lists');
 				return false;
@@ -222,7 +216,8 @@ export class ProxyManager {
 			const accountKey = `account${accountNum}`;
 			const accountData = this.proxyLists[accountKey];
 
-			if (!accountData || !accountData.proxies) {
+			// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive check for runtime safety
+			if (!accountData?.proxies) {
 				continue;
 			}
 
@@ -259,17 +254,15 @@ export class ProxyManager {
 			nextAccount = this.availableAccounts[0]!;
 		} else {
 			// Find current account index and move to next
-			const currentIndex = this.availableAccounts.indexOf(
-				this.lastUsedAccount,
-			);
-			const nextIndex =
-				(currentIndex + 1) % this.availableAccounts.length;
+			const currentIndex = this.availableAccounts.indexOf(this.lastUsedAccount);
+			const nextIndex = (currentIndex + 1) % this.availableAccounts.length;
 			nextAccount = this.availableAccounts[nextIndex]!;
 		}
 		this.lastUsedAccount = nextAccount;
 
 		// Get credentials for selected account
 		const accountKey = `account${nextAccount}`;
+		// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- key may not exist at runtime
 		const credentials = this.proxyLists[accountKey]?.credentials;
 
 		if (!credentials) {
@@ -307,7 +300,7 @@ export class ProxyManager {
 
 		// Randomly select from available IPs
 		const selectedProxy =
-			availableIPs[Math.floor(Math.random() * availableIPs.length)]!;
+			availableIPs[Math.floor(Math.random() * availableIPs.length)];
 		const selectedIPPort = `${selectedProxy.ip}:${selectedProxy.port}`;
 
 		// Update usage count
@@ -349,8 +342,7 @@ export class ProxyManager {
 		for (const [, count] of this.ipUsageCount.entries()) {
 			const bucket = Math.floor(count / 10) * 10;
 			const key = `${bucket}-${bucket + 9}`;
-			stats.usageDistribution[key] =
-				(stats.usageDistribution[key] ?? 0) + 1;
+			stats.usageDistribution[key] = (stats.usageDistribution[key] ?? 0) + 1;
 		}
 
 		logger.info(`Proxy usage stats: ${JSON.stringify(stats)}`);

@@ -150,9 +150,7 @@ invalid-line
 
 				expect(proxyManager.blacklistedIPs.size).toBe(2);
 				expect(proxyManager.blacklistedIPs.has('1.1.1.1')).toBe(true);
-				expect(proxyManager.blacklistedIPs.has('2.2.2.2:8080')).toBe(
-					true,
-				);
+				expect(proxyManager.blacklistedIPs.has('2.2.2.2:8080')).toBe(true);
 			});
 
 			it('should handle empty blacklist', () => {
@@ -167,9 +165,7 @@ invalid-line
 				proxyManager.loadBlacklist();
 
 				expect(proxyManager.blacklistedIPs.has('1.1.1.1')).toBe(true);
-				expect(proxyManager.blacklistedIPs.has('2.2.2.2:8080')).toBe(
-					true,
-				);
+				expect(proxyManager.blacklistedIPs.has('2.2.2.2:8080')).toBe(true);
 			});
 
 			it('should ignore empty entries', () => {
@@ -185,15 +181,9 @@ invalid-line
 				proxyManager.loadBlacklist();
 
 				expect(proxyManager.blacklistedIPs.size).toBe(3);
-				expect(proxyManager.blacklistedIPs.has('192.168.1.1')).toBe(
-					true,
-				);
-				expect(proxyManager.blacklistedIPs.has('10.0.0.5:8080')).toBe(
-					true,
-				);
-				expect(proxyManager.blacklistedIPs.has('172.16.0.1:9000')).toBe(
-					true,
-				);
+				expect(proxyManager.blacklistedIPs.has('192.168.1.1')).toBe(true);
+				expect(proxyManager.blacklistedIPs.has('10.0.0.5:8080')).toBe(true);
+				expect(proxyManager.blacklistedIPs.has('172.16.0.1:9000')).toBe(true);
 			});
 		});
 
@@ -263,12 +253,8 @@ invalid-line
 				const result = proxyManager.getAllUniqueIPs();
 
 				expect(result).toHaveLength(3);
-				expect(
-					result.find((p) => p.ip === '1.1.1.1'),
-				).toBeUndefined();
-				expect(
-					result.find((p) => p.ip === '4.4.4.4'),
-				).toBeUndefined();
+				expect(result.find((p) => p.ip === '1.1.1.1')).toBeUndefined();
+				expect(result.find((p) => p.ip === '4.4.4.4')).toBeUndefined();
 				expect(result.find((p) => p.ip === '2.2.2.2')).toBeDefined();
 				expect(result.find((p) => p.ip === '3.3.3.3')).toBeDefined();
 				expect(result.find((p) => p.ip === '5.5.5.5')).toBeDefined();
@@ -284,8 +270,7 @@ invalid-line
 			});
 
 			it('should return empty array when all IPs are blacklisted', () => {
-				process.env.PROXY_BLACKLIST =
-					'1.1.1.1,2.2.2.2,3.3.3.3,4.4.4.4,5.5.5.5';
+				process.env.PROXY_BLACKLIST = '1.1.1.1,2.2.2.2,3.3.3.3,4.4.4.4,5.5.5.5';
 				proxyManager.loadBlacklist();
 
 				const result = proxyManager.getAllUniqueIPs();
@@ -300,9 +285,7 @@ invalid-line
 				const result = proxyManager.getAllUniqueIPs();
 
 				expect(result).toHaveLength(4);
-				expect(
-					result.find((p) => p.ip === '2.2.2.2'),
-				).toBeUndefined();
+				expect(result.find((p) => p.ip === '2.2.2.2')).toBeUndefined();
 			});
 		});
 
@@ -348,8 +331,7 @@ invalid-line
 			});
 
 			it('should throw error when all proxies are blacklisted', async () => {
-				process.env.PROXY_BLACKLIST =
-					'1.1.1.1,2.2.2.2,3.3.3.3,4.4.4.4,5.5.5.5';
+				process.env.PROXY_BLACKLIST = '1.1.1.1,2.2.2.2,3.3.3.3,4.4.4.4,5.5.5.5';
 				proxyManager.loadBlacklist();
 
 				await expect(proxyManager.getRandomProxy()).rejects.toThrow(

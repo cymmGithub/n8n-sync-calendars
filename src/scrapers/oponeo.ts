@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition -- DOM queries in page.evaluate() may return null at runtime */
 import type { Page } from 'playwright';
 import { logger } from '../utils/logger.js';
 import { getReservationsFromNowUrl } from '../utils/dates.js';
@@ -23,7 +24,7 @@ export async function authenticateOponeo(
 
 		await Promise.all([
 			page.click('a.button.enter', { timeout: 60000 }),
-			page.waitForNavigation({ waitUntil: 'load', timeout: 60000 }),
+			page.waitForURL(/.*/, { waitUntil: 'load', timeout: 60000 }),
 		]);
 
 		const currentUrl = page.url();
@@ -48,9 +49,7 @@ export async function scrapeReservationsList(
 		// Extract all reservations from the current page and filter
 		// for 'R' prefix which at this moment indicates reservation from oponeo
 		const reservations = await page.evaluate(() => {
-			const rows = Array.from(
-				document.querySelectorAll('.table .row'),
-			);
+			const rows = Array.from(document.querySelectorAll('.table .row'));
 			return rows
 				.map((row) => {
 					const reservationNumber = row
@@ -69,9 +68,8 @@ export async function scrapeReservationsList(
 
 					return {
 						reservation_url:
-							row.querySelector<HTMLAnchorElement>(
-								'a.reservationNumber',
-							)?.href ?? null,
+							row.querySelector<HTMLAnchorElement>('a.reservationNumber')
+								?.href ?? null,
 						reservation_number: reservationNumber ?? '',
 					};
 				})
@@ -114,9 +112,7 @@ export async function getAllPagesReservations(
 			}
 
 			const lastPageItem = pagerItems
-				.filter((item) =>
-					/^\d+$/.test(item.textContent?.trim() ?? ''),
-				)
+				.filter((item) => /^\d+$/.test(item.textContent?.trim() ?? ''))
 				.pop();
 
 			if (!lastPageItem) {
@@ -195,12 +191,8 @@ export async function scrapeReservationDetails(
 				return description?.textContent?.trim() ?? null;
 			};
 			const getLabelsTextContent = (labelText: string): string => {
-				const labels = Array.from(
-					document.querySelectorAll('p label'),
-				);
-				const label = labels.find(
-					(l) => l.textContent?.trim() === labelText,
-				);
+				const labels = Array.from(document.querySelectorAll('p label'));
+				const label = labels.find((l) => l.textContent?.trim() === labelText);
 				if (!label) return '';
 				const parentP = label.closest('p');
 				if (!parentP) return '';
@@ -209,16 +201,14 @@ export async function scrapeReservationDetails(
 			};
 
 			return {
-				reservation_number:
-					getLabelsTextContent('Numer rezerwacji:'),
+				reservation_number: getLabelsTextContent('Numer rezerwacji:'),
 				date: getLabelsTextContent('Data:'),
 				time: getLabelsTextContent('Godzina:'),
 				position: getLabelsTextContent('Stanowisko:'),
 				description: getProduktyTextContent(),
 				client_name: getLabelsTextContent('Imię i nazwisko:'),
 				phone: getLabelsTextContent('Nr telefonu:'),
-				registration_number:
-					getLabelsTextContent('Nr rejestracyjny:'),
+				registration_number: getLabelsTextContent('Nr rejestracyjny:'),
 				email: getLabelsTextContent('E-mail:'),
 			};
 		});

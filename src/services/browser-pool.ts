@@ -79,10 +79,7 @@ export class BrowserPool {
 
 		// Create new context and page
 		logger.info('Creating new context and page');
-		const { context, page } = await createBrowserContext(
-			browser,
-			debugMode,
-		);
+		const { context, page } = await createBrowserContext(browser, debugMode);
 		this.context = context;
 		this.page = page;
 		this.isAuthenticated = false;
@@ -102,7 +99,7 @@ export class BrowserPool {
 		logger.info('Context marked as authenticated');
 	}
 
-	async releaseContext(): Promise<void> {
+	releaseContext(): void {
 		this.isInUse = false;
 		this.lastUsed = Date.now();
 
@@ -114,16 +111,15 @@ export class BrowserPool {
 		}
 
 		// Start cleanup timer
-		this.contextCleanupTimer = setTimeout(async () => {
+		this.contextCleanupTimer = setTimeout(() => {
 			if (!this.isInUse && this.isStale()) {
 				logger.info('Closing idle context and browser');
-				await this.closeContext();
-				await this.closeBrowser();
+				void this.closeContext().then(() => this.closeBrowser());
 			}
 		}, this.IDLE_TIMEOUT);
 	}
 
-	async releaseBrowser(): Promise<void> {
+	releaseBrowser(): void {
 		this.isInUse = false;
 		this.lastUsed = Date.now();
 
@@ -133,10 +129,10 @@ export class BrowserPool {
 		}
 
 		// Start cleanup timer
-		this.browserCleanupTimer = setTimeout(async () => {
+		this.browserCleanupTimer = setTimeout(() => {
 			if (!this.isInUse && this.isStale()) {
 				logger.info('Closing idle browser instance');
-				await this.closeBrowser();
+				void this.closeBrowser();
 			}
 		}, this.IDLE_TIMEOUT);
 	}
@@ -160,9 +156,7 @@ export class BrowserPool {
 			} catch (error) {
 				logger.error(
 					'Error closing context:',
-					error instanceof Error
-						? error.message
-						: 'Unknown error',
+					error instanceof Error ? error.message : 'Unknown error',
 				);
 			}
 			this.context = null;
@@ -187,9 +181,7 @@ export class BrowserPool {
 			} catch (error) {
 				logger.error(
 					'Error closing browser:',
-					error instanceof Error
-						? error.message
-						: 'Unknown error',
+					error instanceof Error ? error.message : 'Unknown error',
 				);
 			}
 			this.browser = null;

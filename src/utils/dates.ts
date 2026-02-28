@@ -4,7 +4,7 @@ import {
 } from '../types/index.js';
 
 export const getCurrentDate = (): string => {
-	return new Date().toISOString().split('T')[0]!;
+	return new Date().toISOString().split('T')[0];
 };
 
 export const getCurrentDateMidnight = (): string => {
@@ -38,9 +38,7 @@ export function isoToTicks(isoString: string): bigint {
 	}
 
 	const ms = BigInt(date.getTime());
-	return (
-		ms * BigInt(TICKS_PER_MILLISECOND) + BigInt(EPOCH_TICKS_AT_UNIX_EPOCH)
-	);
+	return ms * BigInt(TICKS_PER_MILLISECOND) + BigInt(EPOCH_TICKS_AT_UNIX_EPOCH);
 }
 
 export const getTimeSlotIndex = (
@@ -66,7 +64,7 @@ export const getTimeSlotIndex = (
 };
 
 export const getReservationsFromNowUrl = (): string => {
-	const reservationsBaseUrl = process.env['OPONEO_RESERVATIONS_LIST_URL'];
+	const reservationsBaseUrl = process.env['OPONEO_RESERVATIONS_LIST_URL'] ?? '';
 	const jsNow = new Date();
 	const dotNetNow =
 		jsNow.getTime() * TICKS_PER_MILLISECOND + EPOCH_TICKS_AT_UNIX_EPOCH;

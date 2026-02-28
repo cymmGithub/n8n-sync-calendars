@@ -81,7 +81,9 @@ describe('BrowserPool Context Management', () => {
 			browserPool.context = {
 				close: jest.fn(),
 			} as unknown as BrowserContext;
-			browserPool.page = { mockPage: true } as unknown as typeof browserPool.page;
+			browserPool.page = {
+				mockPage: true,
+			} as unknown as typeof browserPool.page;
 			browserPool.isAuthenticated = true;
 
 			await browserPool.closeContext();

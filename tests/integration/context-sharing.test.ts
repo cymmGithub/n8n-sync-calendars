@@ -278,7 +278,6 @@ describe('BrowserPool Context Sharing Integration Tests', () => {
 			// Mock the browser creation
 			browserPool.browser = mockBrowser;
 
-			const time1 = Date.now();
 			await browserPool.getContext(false);
 			const firstUsed = browserPool.lastUsed;
 
@@ -314,9 +313,7 @@ describe('BrowserPool Context Sharing Integration Tests', () => {
 			browserPool.context = null;
 			browserPool.browser = null;
 
-			await expect(
-				browserPool.closeBrowser(),
-			).resolves.not.toThrow();
+			await expect(browserPool.closeBrowser()).resolves.not.toThrow();
 		});
 	});
 });

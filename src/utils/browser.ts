@@ -64,12 +64,12 @@ export async function createBrowserContext(
 	const page = await context.newPage();
 
 	if (debugMode) {
-		page.on('console', (msg) =>
-			console.log('Browser console:', msg.text()),
-		);
-		page.on('pageerror', (err) =>
-			console.error('Browser page error:', err),
-		);
+		page.on('console', (msg) => {
+			console.log('Browser console:', msg.text());
+		});
+		page.on('pageerror', (err) => {
+			console.error('Browser page error:', err);
+		});
 	}
 
 	return { context, page };

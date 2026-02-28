@@ -20,9 +20,7 @@ app.get('/health', (_req, res) => {
 });
 
 const server = app.listen(env.PORT, () => {
-	console.log(
-		`Scraper is running on http://localhost:${env.PORT.toString()}`,
-	);
+	console.log(`Scraper is running on http://localhost:${env.PORT.toString()}`);
 });
 
 const shutdown = (): void => {
