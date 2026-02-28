@@ -12,3 +12,6 @@ n8n-credentials.json
 /.jest-cache
 
 /tests/fixtures/reservation-*
+
+# TypeScript build output
+/dist
