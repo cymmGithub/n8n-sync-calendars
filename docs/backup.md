@@ -7,8 +7,10 @@ Set up 2026-07-05. State backs up daily to BorgBase; code lives in this repo.
 - **What:** `n8n_data` volume (SQLite DB + encryption key in `.n8n/config` — the
   officially required n8n backup set), `redis_data` volume, `.env`, `workflows/`.
   Code is NOT backed up — GitHub is the source of truth for it.
-- **How:** `scripts/vps-backup.sh` from sysop cron daily at 03:30: stop containers
-  → tar volumes (seconds of downtime) → start → borg upload → cleanup.
+- **How:** `scripts/vps-backup.sh` daily at 03:30 Europe/Warsaw via systemd **user**
+  timer `vps-backup.timer` (sysop has no sudo; crontab is blocked on this Mikrus LXC,
+  but user-level systemd + linger works): stop containers → tar volumes (seconds of
+  downtime) → start → borg upload → cleanup.
 - **Where:** BorgBase repo `vps-mikrus-opony` (`fwk3187c`, eu). The VPS key is
   **append-only** — a compromised VPS cannot delete or alter backup history.
 - **Pruning:** weekly from the workstation (full-access key): 7 daily / 4 weekly /
@@ -27,7 +29,7 @@ On the VPS they live in `~/.borg-backup.env` (mode 600, outside the repo).
 ```bash
 tail -50 ~/vps-backup.log                 # last runs
 source ~/.borg-backup.env && borg list "$BORG_REPO"   # archives
-crontab -l                                # schedule
+systemctl --user list-timers vps-backup.timer         # schedule
 ```
 
 ## Disaster recovery
