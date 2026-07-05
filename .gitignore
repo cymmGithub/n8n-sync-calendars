@@ -15,3 +15,7 @@ n8n-credentials.json
 
 # TypeScript build output
 /dist
+
+# Backup working files
+/backups
+.borg-credentials
