@@ -267,6 +267,29 @@
                 ],
                 "combinator": "and"
               }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "1e3d29ad-de2e-40e9-b529-c9aa4cfbc4ea",
+                    "leftValue": "={{(() => {\n  const reservation = JSON.parse($json.reservation);\n  const error = $json.error;\n  const isSlotTaken = error?.status === 400 && String(error.message).includes('Stanowisko jest niedost');\n  return !reservation && !!error && !isSlotTaken;\n})()}}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             }
           ]
         },
@@ -322,7 +345,7 @@
     },
     {
       "parameters": {
-        "content": "## 0 - reservation acknowledged\n## 1 - reservation waiting for acknowledge (loop)\n## 2 - reservation waiting for acknowledge\n## 3 - reservation without conflict\n",
+        "content": "## 0 - reservation acknowledged\n## 1 - reservation waiting for acknowledge (loop)\n## 2 - reservation waiting for acknowledge\n## 3 - reservation without conflict\n## 4 - sync failed (alert on 3rd run in a row)\n",
         "height": 300,
         "width": 360,
         "color": 5
@@ -463,6 +486,126 @@
       ],
       "id": "0811e64e-2d84-48b0-85c9-ad14ae5df2bd",
       "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "operation": "incr",
+        "key": "=OPONEO_FAIL:{{ $json.reservationId }}",
+        "expire": true,
+        "ttl": 604800
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        1360
+      ],
+      "id": "195675b9-891d-45b6-9f97-25500e44b0e8",
+      "name": "Count sync failure",
+      "credentials": {
+        "redis": {
+          "id": "HDbs663OT229v1Sy",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "=OPONEO_FAIL:{{ $json.reservationId }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        1600
+      ],
+      "id": "63904747-8e13-45af-ad34-b1925ab86720",
+      "name": "Clear sync failure count",
+      "credentials": {
+        "redis": {
+          "id": "HDbs663OT229v1Sy",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "mergeByIndex"
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        2064,
+        1440
+      ],
+      "id": "5a0dc400-fcb9-4965-b072-ea9e97dae2a2",
+      "name": "Merge sync failures"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Alert once, when a reservation fails to sync on the 3rd run in a row\nconst THRESHOLD = 3;\n\n// fromDate/toDate hold Warsaw wall-clock time with a Z suffix\nconst formatDate = (value) => {\n  const [date, time] = new Date(value).toISOString().split('T');\n  const [year, month, day] = date.split('-');\n  return `${day}.${month}.${year} ${time.slice(0, 5)}`;\n};\n\nconst reservations = $input.all()\n  .map(({ json }) => json)\n  .filter((json) => json[`OPONEO_FAIL:${json.reservationId}`] === THRESHOLD)\n  .map((json) => ({\n    reservationId: json.reservationId,\n    client: `${json.firstname} ${json.lastname}`,\n    from: formatDate(json.fromDate),\n    to: formatDate(json.toDate),\n    oponeoUrl: json.notes.oponeo_url,\n    error: String(json.error?.message ?? json.error?.code ?? 'Nieznany błąd').slice(0, 200),\n  }));\n\nif (reservations.length === 0) {\n  return [];\n}\n\nreturn [{ json: { reservations } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2272,
+        1440
+      ],
+      "id": "5defa76c-2458-4506-8864-176c8dac012b",
+      "name": "Sync failure threshold"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C090JGLJ4VC",
+          "mode": "id"
+        },
+        "text": "={{ '*❌ Synchronizacja Oponeo → WO nieudana (3 kolejne przebiegi)*\\n' + $json.reservations.map(r => `• ${r.from} – ${r.to.slice(11)} · ${r.client} · <${r.oponeoUrl}|#${r.reservationId}>\\n    ↳ ${r.error}`).join('\\n') }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "link_names": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        2512,
+        1360
+      ],
+      "id": "f447fff5-d828-4e10-8af0-3d4465561f9b",
+      "name": "Sync failed alert",
+      "webhookId": "b6bfa15a-55df-4273-a307-6e63d8e25f31",
+      "credentials": {
+        "slackApi": {
+          "id": "xhNxDQ0tM4kaOaG6",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "calendar-syncer@digito.pl",
+        "toEmail": "hurt@digito.com.pl",
+        "subject": "❌ Synchronizacja Oponeo → WO nieudana",
+        "html": "={{(() => {\n  const rows = $json.reservations.map(r => `\n        <tr>\n          <td>${r.from} – ${r.to.slice(11)}</td>\n          <td>${r.client}</td>\n          <td><a href=\"${r.oponeoUrl}\" style=\"color:#0d6efd;\" target=\"_blank\">#${r.reservationId}</a></td>\n          <td style=\"font-size:12px; color:#777;\">${r.error}</td>\n        </tr>`).join('');\n\n  return `\n    <div style=\"max-width:600px; margin:auto; font-family:Arial,sans-serif; background:#ffffff; border-radius:10px; padding:24px; border:1px solid #e0e0e0; color:#333333;\">\n      <h2 style=\"text-align:center; color:#000000;\">❌ Synchronizacja Oponeo → WO nieudana</h2>\n      <p>Poniższe rezerwacje nie zostały przeniesione do WO w 3 kolejnych przebiegach. Sprawdź je ręcznie.</p>\n      <table cellpadding=\"8\" cellspacing=\"0\" style=\"width:100%; font-size:14px; border-collapse:collapse;\">\n        <tr style=\"text-align:left;\"><th>Termin</th><th>Klient</th><th>Oponeo</th><th>Błąd</th></tr>\n        ${rows}\n      </table>\n    </div>\n  `;\n})()}}\n"
+      },
+      "type": "n8n-nodes-base.mailgun",
+      "typeVersion": 1,
+      "position": [
+        2512,
+        1520
+      ],
+      "id": "dbc9f9c2-ae33-498a-a4c9-eff065fdfe89",
+      "name": "Sync failed mail",
+      "credentials": {
+        "mailgunApi": {
+          "id": "DP8x4bkOkqC4r6ZA",
+          "name": "Mailgun account"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -580,6 +723,11 @@
             "node": "Merge results2",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Clear sync failure count",
+            "type": "main",
+            "index": 0
           }
         ],
         [
@@ -587,6 +735,23 @@
             "node": "Merge results3",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Clear sync failure count",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Count sync failure",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge sync failures",
+            "type": "main",
+            "index": 1
           }
         ]
       ]
@@ -660,6 +825,44 @@
         [
           {
             "node": "Scrape Oponeo1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count sync failure": {
+      "main": [
+        [
+          {
+            "node": "Merge sync failures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge sync failures": {
+      "main": [
+        [
+          {
+            "node": "Sync failure threshold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync failure threshold": {
+      "main": [
+        [
+          {
+            "node": "Sync failed alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Sync failed mail",
             "type": "main",
             "index": 0
           }
