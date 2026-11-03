@@ -132,8 +132,9 @@ router.post('/scraper', async (req: Request, res: Response): Promise<void> => {
 			stack: error instanceof Error ? error.stack : undefined,
 		});
 
-		// Release context on error (let pool manage cleanup)
-		browserPool.releaseContext();
+		// Drop the browser: n8n's retry then launches a new one, through a
+		// different proxy, instead of failing again through the same bad one
+		await browserPool.closeBrowser();
 
 		res.status(500).json({
 			success: false,
@@ -374,8 +375,9 @@ router.post('/mutator', async (req: Request, res: Response): Promise<void> => {
 			stack: error instanceof Error ? error.stack : undefined,
 		});
 
-		// Release context on error (let pool manage cleanup)
-		browserPool.releaseContext();
+		// Drop the browser: n8n's retry then launches a new one, through a
+		// different proxy, instead of failing again through the same bad one
+		await browserPool.closeBrowser();
 
 		res.status(500).json({
 			success: false,
@@ -544,8 +546,9 @@ router.post(
 				stack: error instanceof Error ? error.stack : undefined,
 			});
 
-			// Release context on error (let pool manage cleanup)
-			browserPool.releaseContext();
+			// Drop the browser: n8n's retry then launches a new one, through a
+			// different proxy, instead of failing again through the same bad one
+			await browserPool.closeBrowser();
 
 			res.status(500).json({
 				success: false,
