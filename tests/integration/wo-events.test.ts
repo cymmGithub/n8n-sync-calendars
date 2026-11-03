@@ -10,7 +10,7 @@ jest.mock('../../src/utils/logger.js', () => ({
 }));
 jest.mock('../../src/utils/dates.js', () => ({
 	getCurrentDate: jest.fn(() => '2025-01-15'),
-	getCurrentDateMidnight: jest.fn(() => '2025-01-15T00:00:00.000Z'),
+	getUpdatedAtFrom: jest.fn(() => '2025-01-15T00:00:00.000Z'),
 }));
 
 describe('WO Events Routes', () => {

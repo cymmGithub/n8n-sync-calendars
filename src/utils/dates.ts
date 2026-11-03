@@ -7,10 +7,18 @@ export const getCurrentDate = (): string => {
 	return new Date().toISOString().split('T')[0];
 };
 
-export const getCurrentDateMidnight = (): string => {
-	const now = new Date();
-	now.setUTCHours(0, 0, 0, 0);
-	return now.toISOString();
+// WO events changed after this point get synced to Oponeo. A fixed lookback,
+// not today's midnight: the n8n schedule leaves up to 24h between runs
+// (Sat 23:00 → Sun 23:00), and anything older than the window is never synced.
+const UPDATED_AT_LOOKBACK_HOURS = 72;
+
+export const getUpdatedAtFrom = (): string => {
+	const from = new Date(
+		Date.now() - UPDATED_AT_LOOKBACK_HOURS * 60 * 60 * 1000,
+	);
+	// Full hour, the same shape WO has been receiving (…T00:00:00.000Z)
+	from.setUTCMinutes(0, 0, 0);
+	return from.toISOString();
 };
 
 export const convertTicksToDate = (ticks: bigint | number): Date => {

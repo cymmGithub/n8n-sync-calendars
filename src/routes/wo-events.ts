@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { getCurrentDate, getCurrentDateMidnight } from '../utils/dates.js';
+import { getCurrentDate, getUpdatedAtFrom } from '../utils/dates.js';
 import { logger } from '../utils/logger.js';
 
 const router = Router();
@@ -24,7 +24,7 @@ router.get('/events', async (req: Request, res: Response): Promise<void> => {
 		}
 
 		if (req.query['filter_by'] === 'updated_at_from') {
-			updatedAtFrom = getCurrentDateMidnight();
+			updatedAtFrom = getUpdatedAtFrom();
 		}
 
 		// Validate WO_API_KEY exists

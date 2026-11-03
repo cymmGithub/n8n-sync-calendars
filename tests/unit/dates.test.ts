@@ -3,7 +3,7 @@ import {
 	formatTime,
 	isoToTicks,
 	getCurrentDate,
-	getCurrentDateMidnight,
+	getUpdatedAtFrom,
 	getReservationsFromNowUrl,
 	getTimeSlotIndex,
 } from '../../src/utils/dates.js';
@@ -27,93 +27,25 @@ describe('Date and Time Utilities', () => {
 		});
 	});
 
-	describe('getCurrentDateMidnight', () => {
-		it('should return ISO 8601 formatted string', () => {
-			const result = getCurrentDateMidnight();
-			// ISO 8601 format: YYYY-MM-DDTHH:mm:ss.sssZ
-			const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
-			expect(result).toMatch(isoRegex);
+	describe('getUpdatedAtFrom', () => {
+		afterEach(() => {
+			jest.useRealTimers();
 		});
 
-		it('should return time set to midnight (00:00:00.000)', () => {
-			const result = getCurrentDateMidnight();
-			const date = new Date(result);
+		it('should reach back 72 hours, rounded down to the full hour', () => {
+			jest.useFakeTimers().setSystemTime(new Date('2026-11-02T07:42:13.123Z'));
 
-			expect(date.getUTCHours()).toBe(0);
-			expect(date.getUTCMinutes()).toBe(0);
-			expect(date.getUTCSeconds()).toBe(0);
-			expect(date.getUTCMilliseconds()).toBe(0);
+			expect(getUpdatedAtFrom()).toBe('2026-10-30T07:00:00.000Z');
 		});
 
-		it("should return today's date at midnight", () => {
-			const result = getCurrentDateMidnight();
-			const resultDate = new Date(result);
-			const today = new Date();
+		it('should include a booking made on Sunday in the first Monday run', () => {
+			// WO 974247 was booked on Sunday; the Monday 08:00 run asked only for
+			// changes since Monday 00:00 UTC, so it never reached Oponeo
+			jest.useFakeTimers().setSystemTime(new Date('2026-11-02T07:00:00.000Z'));
 
-			// Compare year, month, and date (ignoring time)
-			expect(resultDate.getUTCFullYear()).toBe(today.getUTCFullYear());
-			expect(resultDate.getUTCMonth()).toBe(today.getUTCMonth());
-			expect(resultDate.getUTCDate()).toBe(today.getUTCDate());
-		});
-
-		it('should return UTC midnight for today', () => {
-			const result = getCurrentDateMidnight();
-			const expected = new Date();
-			expected.setUTCHours(0, 0, 0, 0);
-			expect(result).toBe(expected.toISOString());
-		});
-
-		it('should be parseable as a valid Date object', () => {
-			const result = getCurrentDateMidnight();
-			const date = new Date(result);
-
-			expect(date).toBeInstanceOf(Date);
-			expect(isNaN(date.getTime())).toBe(false);
-		});
-
-		it('should have timezone indicator Z', () => {
-			const result = getCurrentDateMidnight();
-			expect(result).toMatch(/Z$/);
-		});
-
-		it('should be different from current time (unless it is exactly midnight)', () => {
-			const result = getCurrentDateMidnight();
-			const now = new Date().toISOString();
-
-			const nowDate = new Date(now);
-
-			// Unless we're exactly at midnight, these should be different
-			if (nowDate.getUTCHours() !== 0 || nowDate.getUTCMinutes() !== 0) {
-				expect(result).not.toBe(now);
-			}
-		});
-
-		it('should always be less than or equal to current time', () => {
-			const result = getCurrentDateMidnight();
-			const now = new Date();
-			const resultDate = new Date(result);
-
-			expect(resultDate.getTime()).toBeLessThanOrEqual(now.getTime());
-		});
-
-		it('should be consistent across multiple calls within the same day', () => {
-			const result1 = getCurrentDateMidnight();
-			const result2 = getCurrentDateMidnight();
-
-			// Both should return the same midnight timestamp if called on the same day
-			expect(result1).toBe(result2);
-		});
-
-		it("should return time exactly 24 hours before tomorrow's midnight", () => {
-			const today = getCurrentDateMidnight();
-			const tomorrow = new Date();
-			tomorrow.setUTCHours(0, 0, 0, 0);
-			tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-
-			const todayTime = new Date(today).getTime();
-			const tomorrowTime = tomorrow.getTime();
-
-			expect(tomorrowTime - todayTime).toBe(24 * 60 * 60 * 1000); // 24 hours in milliseconds
+			expect(new Date(getUpdatedAtFrom()).getTime()).toBeLessThanOrEqual(
+				new Date('2026-11-01T14:28:48+01:00').getTime(),
+			);
 		});
 	});
 
