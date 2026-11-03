@@ -5,6 +5,18 @@ import { logger } from '../utils/logger.js';
 
 const router = Router();
 
+// The WO API answers with one page of planned events at a time
+interface PagedEvents {
+	pages: number;
+	items: unknown[];
+}
+
+const isPagedEvents = (data: unknown): data is PagedEvents =>
+	typeof data === 'object' &&
+	data !== null &&
+	Array.isArray((data as PagedEvents).items) &&
+	typeof (data as PagedEvents).pages === 'number';
+
 // GET /wo-events - Fetch work order events from WO API
 router.get('/events', async (req: Request, res: Response): Promise<void> => {
 	try {
@@ -51,33 +63,53 @@ router.get('/events', async (req: Request, res: Response): Promise<void> => {
 			woApiUrl.searchParams.set('updated_at_from', updatedAtFrom);
 		}
 
-		logger.info(`Fetching WO events from: ${woApiUrl.toString()}`);
+		// n8n treats an event missing from this list as cancelled, so unless a
+		// page was asked for, fetch every page, and fail if any page fails
+		const fetchAllPages = req.query['page'] === undefined;
+		let woData: unknown;
+		let pageToFetch: string | undefined = page;
 
-		// Make request to WO API
-		const response = await fetch(woApiUrl.toString(), {
-			method: 'GET',
-			headers: {
-				accept: '*/*',
-				Authorization: `Bearer ${process.env['WO_API_KEY']}`,
-			},
-		});
+		while (pageToFetch !== undefined) {
+			woApiUrl.searchParams.set('page', pageToFetch);
+			logger.info(`Fetching WO events from: ${woApiUrl.toString()}`);
 
-		if (!response.ok) {
-			logger.error(
-				`WO API request failed with status: ${response.status.toString()}`,
-			);
-			const errorText = await response.text();
-			logger.error(`WO API error response: ${errorText}`);
-
-			res.status(response.status).json({
-				success: false,
-				error: `WO API request failed with status ${response.status.toString()}`,
-				details: errorText,
+			// Make request to WO API
+			const response = await fetch(woApiUrl.toString(), {
+				method: 'GET',
+				headers: {
+					accept: '*/*',
+					Authorization: `Bearer ${process.env['WO_API_KEY']}`,
+				},
 			});
-			return;
-		}
 
-		const woData: unknown = await response.json();
+			if (!response.ok) {
+				logger.error(
+					`WO API request failed with status: ${response.status.toString()}`,
+				);
+				const errorText = await response.text();
+				logger.error(`WO API error response: ${errorText}`);
+
+				res.status(response.status).json({
+					success: false,
+					error: `WO API request failed with status ${response.status.toString()}`,
+					details: errorText,
+				});
+				return;
+			}
+
+			const pageData: unknown = await response.json();
+			if (isPagedEvents(woData) && isPagedEvents(pageData)) {
+				woData.items.push(...pageData.items);
+			} else {
+				woData = pageData;
+			}
+
+			const current: number = Number(pageToFetch);
+			pageToFetch =
+				fetchAllPages && isPagedEvents(pageData) && current < pageData.pages
+					? (current + 1).toString()
+					: undefined;
+		}
 		logger.info(
 			`Successfully fetched ${Array.isArray(woData) ? woData.length.toString() : 'unknown'} events from WO API`,
 		);

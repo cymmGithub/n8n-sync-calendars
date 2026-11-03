@@ -304,5 +304,70 @@ describe('WO Events Routes', () => {
 			expect(fetchUrl).toContain('itemsPerPage=50');
 			expect(fetchUrl).toContain('date_from=2025-01-15');
 		});
+
+		describe('when no page is requested', () => {
+			const pageOf = (items: { id: number }[]) => ({
+				ok: true,
+				json: async () => ({ total: 3, pages: 2, items }),
+			});
+
+			it('should merge the items of every page', async () => {
+				process.env.WO_API_KEY = 'test-api-key';
+
+				global.fetch = jest
+					.fn()
+					.mockResolvedValueOnce(pageOf([{ id: 1 }, { id: 2 }]))
+					.mockResolvedValueOnce(pageOf([{ id: 3 }]));
+
+				const response = await request(app)
+					.get('/wo/events?filter_by=date_from')
+					.expect(200);
+
+				expect(response.body.data.items).toEqual([
+					{ id: 1 },
+					{ id: 2 },
+					{ id: 3 },
+				]);
+				const urls = (global.fetch as jest.Mock).mock.calls.map(
+					(call) => call[0] as string,
+				);
+				expect(urls).toHaveLength(2);
+				expect(urls[1]).toContain('page=2');
+				expect(urls[1]).toContain('date_from=2025-01-15');
+			});
+
+			it('should fail the whole request when a later page fails', async () => {
+				process.env.WO_API_KEY = 'test-api-key';
+
+				global.fetch = jest
+					.fn()
+					.mockResolvedValueOnce(pageOf([{ id: 1 }, { id: 2 }]))
+					.mockResolvedValueOnce({
+						ok: false,
+						status: 502,
+						text: async () => 'Bad Gateway',
+					});
+
+				const response = await request(app)
+					.get('/wo/events?filter_by=date_from')
+					.expect(502);
+
+				expect(response.body).toMatchObject({ success: false });
+				expect(response.body.data).toBeUndefined();
+			});
+		});
+
+		it('should fetch only the requested page when page is given', async () => {
+			process.env.WO_API_KEY = 'test-api-key';
+
+			global.fetch = jest.fn().mockResolvedValue({
+				ok: true,
+				json: async () => ({ total: 300, pages: 3, items: [{ id: 1 }] }),
+			});
+
+			await request(app).get('/wo/events?page=2').expect(200);
+
+			expect(global.fetch).toHaveBeenCalledTimes(1);
+		});
 	});
 });
