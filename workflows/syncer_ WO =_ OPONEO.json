@@ -76,7 +76,9 @@
       ],
       "id": "c78d4b4f-66c0-4dea-b51f-fa2bb4491eae",
       "name": "Mutator",
-      "retryOnFail": false
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": null
     },
     {
       "parameters": {
@@ -445,7 +447,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1440,
+        -1456,
         400
       ],
       "id": "dcd08d4c-2a89-464f-8141-6f37732db53c",
@@ -467,53 +469,18 @@
     },
     {
       "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "cronExpression",
-              "expression": "0 8-13 * * 6"
-            }
-          ]
-        }
-      },
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [
-        -1728,
-        656
-      ],
-      "id": "53783cbd-347e-4e2b-8c5b-a02fb494030e",
-      "name": "Schedule Trigger"
-    },
-    {
-      "parameters": {
-        "content": "Every hour, between 08:00 AM and 05:59 PM, Monday through Friday",
-        "height": 208,
-        "width": 224
+        "content": "At 11:00 PM, Monday through Saturday\n\nEvery hour, between 08:00 AM and 05:59 PM, Monday through Friday\n\nEvery hour, between 08:00 AM and 01:59 PM, only on Saturday",
+        "height": 240,
+        "width": 352
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -1840,
-        304
+        -1984,
+        256
       ],
       "id": "6fee4301-73bf-413b-a291-4d12eacd88fd",
       "name": "Sticky Note3"
-    },
-    {
-      "parameters": {
-        "content": "\nEvery hour, between 08:00 AM and 01:59 PM, only on Saturday",
-        "height": 208,
-        "width": 224
-      },
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        -1840,
-        560
-      ],
-      "id": "33fda9ef-f2bf-4bb5-a864-506033560cf8",
-      "name": "Sticky Note8"
     },
     {
       "parameters": {
@@ -522,6 +489,14 @@
             {
               "field": "cronExpression",
               "expression": "0 8-17 * * 1-5"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 23 * * 1-6"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 8-13 * * 6"
             }
           ]
         }
@@ -534,41 +509,6 @@
       ],
       "id": "b03df2fd-0a52-42f6-9859-766006487d43",
       "name": "Schedule Trigger1"
-    },
-    {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "cronExpression",
-              "expression": "0 23 * * 1-6"
-            }
-          ]
-        }
-      },
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [
-        -1728,
-        144
-      ],
-      "id": "a35666f9-3039-4dd2-a7ad-c6d1b59dce65",
-      "name": "Schedule Trigger2"
-    },
-    {
-      "parameters": {
-        "content": "At 11:00 PM, Monday through Saturday",
-        "height": 208,
-        "width": 224
-      },
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        -1840,
-        48
-      ],
-      "id": "698866e8-1824-442f-9870-6ae0b099727f",
-      "name": "Sticky Note9"
     },
     {
       "parameters": {
@@ -731,12 +671,12 @@
       "main": [
         [
           {
-            "node": "Get WO Events (updated_at_from)",
+            "node": "Current Redis Records",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Current Redis Records",
+            "node": "Get WO Events (updated_at_from)",
             "type": "main",
             "index": 0
           }
@@ -747,23 +687,12 @@
       "main": [
         [
           {
-            "node": "Split Out1",
+            "node": "OPONEO => WO",
             "type": "main",
             "index": 0
           },
           {
-            "node": "OPONEO => WO",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Schedule Trigger": {
-      "main": [
-        [
-          {
-            "node": "Get WO Events (date_from)",
+            "node": "Split Out1",
             "type": "main",
             "index": 0
           }
@@ -771,17 +700,6 @@
       ]
     },
     "Schedule Trigger1": {
-      "main": [
-        [
-          {
-            "node": "Get WO Events (date_from)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Schedule Trigger2": {
       "main": [
         [
           {
@@ -815,7 +733,7 @@
     "callerPolicy": "workflowsFromSameOwner",
     "errorWorkflow": "wyMQEsPdz8ZJyqet"
   },
-  "versionId": "29c779dd-4764-406d-8f07-2cf5ad145c66",
+  "versionId": "929e8bf4-b3fb-4b0b-a595-16293255943a",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "1eaeb0eb56fd7cf5f0162cff3cf1f5b726fe65ce5f300e24367b22444c7ab515"
