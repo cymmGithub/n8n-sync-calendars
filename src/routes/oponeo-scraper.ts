@@ -317,10 +317,7 @@ router.post('/mutator', async (req: Request, res: Response): Promise<void> => {
 				}
 			} catch (reservationError) {
 				logger.error(
-					`Failed to create reservation ${(i + 1).toString()}:`,
-					reservationError instanceof Error
-						? reservationError.message
-						: 'Unknown error',
+					`Failed to create reservation ${(i + 1).toString()}: ${reservationError instanceof Error ? reservationError.message : 'Unknown error'}`,
 				);
 
 				errors.push({
@@ -493,10 +490,7 @@ router.post(
 					);
 				} catch (reservationError) {
 					logger.error(
-						`Failed to obliterate reservation ${(i + 1).toString()}:`,
-						reservationError instanceof Error
-							? reservationError.message
-							: 'Unknown error',
+						`Failed to obliterate reservation ${(i + 1).toString()}: ${reservationError instanceof Error ? reservationError.message : 'Unknown error'}`,
 					);
 
 					errors.push({

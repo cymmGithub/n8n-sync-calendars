@@ -25,6 +25,7 @@ import {
 } from '../../src/utils/browser.js';
 import { authenticateOponeo } from '../../src/scrapers/oponeo.js';
 import { browserPool } from '../../src/services/browser-pool.js';
+import { logger } from '../../src/utils/logger.js';
 import scraperRoutes from '../../src/routes/oponeo-scraper.js';
 
 const app = express();
@@ -69,4 +70,64 @@ describe('Oponeo routes', () => {
 			expect(createBrowserInstance).toHaveBeenCalledTimes(2);
 		},
 	);
+
+	describe('when one reservation fails', () => {
+		const usePage = (page: Record<string, unknown>) => {
+			(authenticateOponeo as jest.Mock).mockResolvedValue(true);
+			(createBrowserContext as jest.Mock).mockResolvedValue({
+				context: { close: jest.fn() },
+				page,
+			});
+		};
+
+		it('logs why it could not be created', async () => {
+			// The end-time slot is greyed out in Oponeo
+			const slot = {
+				click: jest.fn(),
+				getAttribute: jest.fn().mockResolvedValue('hour disabled'),
+			};
+			const locator = {
+				...slot,
+				filter: () => ({ nth: () => slot }),
+			};
+			usePage({ goto: jest.fn(), locator: () => locator });
+
+			await request(app)
+				.post('/oponeo/mutator')
+				.send({
+					// 2026-11-06 14:30-15:00 in .NET ticks
+					reservations: [
+						{ startDate: 639295722000000000, endDate: 639295740000000000 },
+					],
+				})
+				.expect(200);
+
+			expect(logger.error).toHaveBeenCalledWith(
+				expect.stringContaining('HOUR_CONFLICT - Time slot 15:00 is disabled.'),
+			);
+		});
+
+		it('logs why it could not be deleted', async () => {
+			usePage({
+				goto: jest.fn(),
+				waitForTimeout: jest.fn(),
+				getByRole: () => ({
+					click: jest
+						.fn()
+						.mockRejectedValue(
+							new Error('locator.click: Timeout 30000ms exceeded.'),
+						),
+				}),
+			});
+
+			await request(app)
+				.post('/oponeo/obliterator')
+				.send({ oponeoReservationIds: ['2900001'] })
+				.expect(200);
+
+			expect(logger.error).toHaveBeenCalledWith(
+				expect.stringContaining('locator.click: Timeout 30000ms exceeded.'),
+			);
+		});
+	});
 });
